@@ -2,7 +2,8 @@
 In-house Performance monitor, using c++
 
 Stuff to learn/Learnt to do:
- - Performance Counters Functions {explore functions} -> gathering calculated states eg. RAM usage and CPU util
+ - iostream.h standard c++ lib
+ - windows.h windows lib for C++
  - conio.h Library Functions in C {explore how it works} -> Inputs, keyboard ect.
 
 

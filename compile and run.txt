@@ -1,3 +1,7 @@
 Stats for Cpu util
 Compile: g++ Stats_Cpu_ult.cpp -o Stats_Cpu_ult.exe -lpdh
 Run: ./Stats_Cpu_ult.exe
+
+Stats for Cpu Speed
+Compile: g++ Stats_Cpu_speed.cpp -o Stats_Cpu_speed.exe -lole32 -loleaut32 -lwbemuuid
+Run: ./Stats_Cpu_speed.exe
