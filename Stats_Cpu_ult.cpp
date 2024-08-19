@@ -1,5 +1,5 @@
 #include <windows.h>    // For Windows-specific APIs
-#include <pdh.h>        // For Performance Data Helper (PDH) functions
+#include <pdh.h>        // For Performance Data Helper (PDH) functions -> need to add  -lpdh to compile with lib
 #include <pdhmsg.h>     // For PDH error messages and status codes
 #include <iostream>     // For input/output stream operations
 #include <conio.h>      // For _kbhit() and _getch(), to detect key presses
@@ -25,7 +25,7 @@ int main() {
         // Collects the initial data for the query (needed before getting any values)
         PdhCollectQueryData(query);
         
-        Sleep(1000);  // Wait for a second to collect more accurate readings
+        Sleep(500);  // Wait for a second to collect more accurate readings
         
         // Collect the query data again after the sleep period
         PdhCollectQueryData(query);

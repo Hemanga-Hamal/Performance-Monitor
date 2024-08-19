@@ -1,0 +1,3 @@
+Stats for Cpu util
+Compile: g++ Stats_Cpu_ult.cpp -o Stats_Cpu_ult.exe -lpdh
+Run: ./Stats_Cpu_ult.exe
