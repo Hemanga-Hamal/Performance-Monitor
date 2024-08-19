@@ -1,4 +1,4 @@
-# Performance-Monitor
+# Performance-Monitor FOR WINDOWS
 In-house Performance monitor, using c++
 
 Stuff to learn/Learnt to do:
@@ -14,5 +14,5 @@ CPU -> util and speed
 RAM -> Total and Used
 
 TO DO
-Disk -> main drive, -> total storage and used storage
+Disk -> main drive -> total storage and used storage
 Network -> Download and Upload speed
