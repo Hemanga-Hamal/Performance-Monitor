@@ -12,7 +12,7 @@ WAYYY LATER {Graphics}
 STUFF DONE
 CPU -> util and speed
 RAM -> Total and Used
+Disk -> main drive -> total storage and used storage
 
 TO DO
-Disk -> main drive -> total storage and used storage
 Network -> Download and Upload speed
