@@ -4,9 +4,7 @@
             "name": "Win32",
             "includePath": [
                 "C:/raylib/raylib/src/**",
-                "${workspaceFolder}/**",
-                "C:/raylib/**",
-                "C:/raylib/w64devkit/bin/**"
+                "${workspaceFolder}/**"
             ],
             "defines": [
                 "_DEBUG",
