@@ -9,6 +9,13 @@ stats::stats(){
     this->RAMTotal = 0.0;
     this->RAMUsed = 0.0;
     this->RAMUtilization = 0.0;
+    //DISK
+    this->DISKTotal = 0.0;
+    this->DISKUsed = 0.0;
+    this->DISKUtilization = 0.0;
+    //NETWORK
+    this->NETWORKDown = 0.0;
+    this->NETWORKUp = 0.0;
 };
 
 // Destructor
@@ -74,4 +81,40 @@ double stats::GETRAMUsed(){
 double stats::GETRAMUtilization(){
     RAMUtilization = (GETRAMTotal()/GETRAMTotal()) * 100;
     return RAMUtilization;
+};
+
+
+//DISK - Total
+double stats::GETDISKTotal(){
+    LPCWSTR drive = L"C:\\";
+    ULARGE_INTEGER freeBytesAvailable, totalBytes, totalFreeBytes;
+    GetDiskFreeSpaceExW(drive, &freeBytesAvailable, &totalBytes, &totalFreeBytes);
+    DISKTotal = static_cast<double>(totalBytes.QuadPart) / (1024.0 * 1024.0 * 1024.0);
+    return DISKTotal;
+};
+
+//DISK - Used
+double stats::GETDISKUsed(){
+    LPCWSTR drive = L"C:\\";
+    ULARGE_INTEGER freeBytesAvailable, totalBytes, totalFreeBytes;
+    GetDiskFreeSpaceExW(drive, &freeBytesAvailable, &totalBytes, &totalFreeBytes);
+    ULONGLONG usedBytes = totalBytes.QuadPart - totalFreeBytes.QuadPart;
+    DISKUsed = static_cast<double>(usedBytes) / (1024.0 * 1024.0 * 1024.0);
+    return DISKUsed;
+};
+
+//DISK - Utilization
+double stats::GETDISKUtilization(){
+    DISKUtilization = (GETDISKUsed()/GETDISKTotal()) * 100;
+    return DISKUtilization;
+};
+
+//NETWORK - Down
+double stats::GETNETWORKDown(){
+
+};
+
+//NETWORK - Up
+double stats::GETNETWORKUp(){
+    
 };

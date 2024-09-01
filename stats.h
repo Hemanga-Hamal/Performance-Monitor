@@ -17,7 +17,14 @@ protected:
     double RAMUsed;
     double RAMUtilization;
 
+    //DISK
+    double DISKTotal;
+    double DISKUsed;
+    double DISKUtilization;
 
+    //NETWORK
+    double NETWORKDown;
+    double NETWORKUp;
 
 public:
     stats();
@@ -32,7 +39,14 @@ public:
     double GETRAMUsed();
     double GETRAMUtilization();
 
+    //DISK
+    double GETDISKTotal();
+    double GETDISKUsed();
+    double GETDISKUtilization();
 
+    //NETWORK
+    double GETNETWORKDown();
+    double GETNETWORKUp();
 };
 
 #endif
