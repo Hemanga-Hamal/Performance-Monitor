@@ -1,43 +1,83 @@
-//SEE WINDOWS PERFORMANCE COUNTER
-
+#include <iostream>
 #include <windows.h>
 #include <pdh.h>
-#include <iostream>
-#include <string>
+#include <pdhmsg.h>
+#include <conio.h> // For _kbhit() and _getch()
+#include <iomanip> // For std::setprecision
 
 #pragma comment(lib, "pdh.lib")
 
 int main() {
-    PDH_HQUERY query;
-    PDH_HCOUNTER counter;
-    PDH_FMT_COUNTERVALUE counterVal;
+    PDH_HQUERY hQuery;
+    PDH_HCOUNTER hCounterWiFi, hCounterEthernet;
+    PDH_FMT_COUNTERVALUE counterValWiFi, counterValEthernet;
+    DWORD dwCounterType;
 
-    std::string networkInterface = "Ethernet";  // Replace with your network interface name
-    std::wstring counterPath = L"\\Network Interface(" + std::wstring(networkInterface.begin(), networkInterface.end()) + L")\\Bytes Total/sec";
+    // Initialize the query
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {
+        std::cerr << "Failed to open query." << std::endl;
+        return 1;
+    }
 
-    // Open a query object.
-    PdhOpenQuery(NULL, NULL, &query);
+    // Add counter for Wi-Fi Adapter (MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Sent/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) {
+        std::cerr << "Failed to add Wi-Fi counter." << std::endl;
+    }
 
-    // Add the counter to the query.
-    PdhAddCounterW(query, counterPath.c_str(), NULL, &counter);
+    // Add counter for Ethernet Adapter (Realtek PCIe GBE Family Controller)
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Sent/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) {
+        std::cerr << "Failed to add Ethernet counter." << std::endl;
+    }
 
-    // Collect data for the first time.
-    PdhCollectQueryData(query);
+    std::cout << "Press Enter to stop..." << std::endl;
 
-    // Sleep for 1 second to get the network speed.
-    Sleep(1000);
+    while (!_kbhit() || _getch() != '\r') {
+        // Collect data
+        if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+            std::cerr << "Failed to collect data." << std::endl;
+            break;
+        }
 
-    // Collect data again.
-    PdhCollectQueryData(query);
+        // Retrieve and format the counter value for Wi-Fi
+        if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
+            double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;    // Convert to Kbps
+            double wifiMbps = wifiKbps / 1000;                            // Convert to Mbps
 
-    // Get the formatted counter value.
-    PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &counterVal);
+            if (wifiKbps > 0) {
+                std::cout << "Active Adapter: Wi-Fi" << std::endl;
+                if (wifiMbps >= 1) {
+                    std::cout << "Wi-Fi Speed: " << std::fixed << std::setprecision(4) << wifiMbps << " Mbps" << std::endl;
+                } else {
+                    std::cout << "Wi-Fi Speed: " << std::fixed << std::setprecision(4) << wifiKbps << " Kbps" << std::endl;
+                }
+            }
+        } else {
+            std::cerr << "Failed to retrieve Wi-Fi counter value." << std::endl;
+        }
 
-    // Close the query.
-    PdhCloseQuery(query);
+        // Retrieve and format the counter value for Ethernet
+        if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
+            double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;    // Convert to Kbps
+            double ethernetMbps = ethernetKbps / 1000;                            // Convert to Mbps
 
-    // Display network speed in KBps
-    std::cout << "Network speed: " << counterVal.doubleValue / 1024.0 << " KBps" << std::endl;
+            if (ethernetKbps > 0) {
+                std::cout << "Active Adapter: Ethernet" << std::endl;
+                if (ethernetMbps >= 1) {
+                    std::cout << "Ethernet Speed: " << std::fixed << std::setprecision(4) << ethernetMbps << " Mbps" << std::endl;
+                } else {
+                    std::cout << "Ethernet Speed: " << std::fixed << std::setprecision(4) << ethernetKbps << " Kbps" << std::endl;
+                }
+            }
+        } else {
+            std::cerr << "Failed to retrieve Ethernet counter value." << std::endl;
+        }
+
+        // Wait for a short interval before collecting data again
+        Sleep(1000); // 1 second delay
+    }
+
+    // Close the query
+    PdhCloseQuery(hQuery);
 
     return 0;
 }
