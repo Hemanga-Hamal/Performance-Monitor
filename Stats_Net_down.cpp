@@ -2,8 +2,8 @@
 #include <windows.h>
 #include <pdh.h>
 #include <pdhmsg.h>
-#include <conio.h> // For _kbhit() and _getch()
-#include <iomanip> // For std::setprecision
+#include <conio.h>
+#include <iomanip> 
 
 #pragma comment(lib, "pdh.lib")
 
@@ -40,8 +40,8 @@ int main() {
 
         // Retrieve and format the counter value for Wi-Fi
         if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
-            double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;    // Convert to Kbps
-            double wifiMbps = wifiKbps / 1000;                            // Convert to Mbps
+            double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;  
+            double wifiMbps = wifiKbps / 1000;                           
 
             if (wifiKbps > 0) {
                 std::cout << "Active Adapter: Wi-Fi" << std::endl;
