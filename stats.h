@@ -2,10 +2,7 @@
 #define STATS_H
 
 #include <iostream>
-#include <windows.h>
-#include <intrin.h>
-#include <conio.h>
-
+#include <string>
 class stats{
 protected:
     //CPU
@@ -23,8 +20,10 @@ protected:
     double DISKUtilization;
 
     //NETWORK
-    double NETWORKDown;
-    double NETWORKUp;
+    std::string NETWORKSourceSend;
+    std::string NETWORKSourceRecieved;
+    double NETWORKSend;
+    double NETWORKRecieve;
 
 public:
     stats();
@@ -44,9 +43,9 @@ public:
     double GETDISKUsed();
     double GETDISKUtilization();
 
-    //NETWORK
-    double GETNETWORKDown();
-    double GETNETWORKUp();
+    //NETWORK 
+    double GETNETWORKSend();
+    double GETNETWORKReceive();
 };
 
 #endif

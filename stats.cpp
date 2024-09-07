@@ -1,5 +1,17 @@
 #include "stats.h"
 
+
+#include <iostream>
+#include <string>
+#include <windows.h>
+#include <intrin.h>
+#include <conio.h>
+#include <pdh.h>
+#include <pdhmsg.h>
+#include <iomanip> 
+
+#pragma comment(lib, "pdh.lib")
+
 // Constructor
 stats::stats(){
     //CPU
@@ -14,8 +26,8 @@ stats::stats(){
     this->DISKUsed = 0.0;
     this->DISKUtilization = 0.0;
     //NETWORK
-    this->NETWORKDown = 0.0;
-    this->NETWORKUp = 0.0;
+    this->NETWORKSend = 0.0;
+    this->NETWORKRecieve = 0.0;
 };
 
 // Destructor
@@ -83,7 +95,6 @@ double stats::GETRAMUtilization(){
     return RAMUtilization;
 };
 
-
 //DISK - Total
 double stats::GETDISKTotal(){
     LPCWSTR drive = L"C:\\";
@@ -109,12 +120,80 @@ double stats::GETDISKUtilization(){
     return DISKUtilization;
 };
 
-//NETWORK - Down
-double stats::GETNETWORKDown(){
+//NETWORK - Send
+double stats::GETNETWORKSend(){
+    PDH_HQUERY hQuery;
+    PDH_HCOUNTER hCounterWiFi, hCounterEthernet;
+    PDH_FMT_COUNTERVALUE counterValWiFi, counterValEthernet;
+    DWORD dwCounterType;
 
-};
+    double sendKbps = 0.0;
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {return sendKbps;}
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Sent/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) 
+    {return sendKbps;}
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Sent/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) 
+    {return sendKbps;}
 
-//NETWORK - Up
-double stats::GETNETWORKUp(){
-    
-};
+    if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+        PdhCloseQuery(hQuery);
+        return sendKbps;
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
+        double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000; 
+        if (wifiKbps > 0) {
+            this->NETWORKSend = wifiKbps;
+            this->NETWORKSourceSend = "Wi-Fi";
+        }
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
+        double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;
+        if (ethernetKbps > 0) {
+            this->NETWORKSend = ethernetKbps;
+            this->NETWORKSourceSend = "Ethernet";
+        }
+    }
+
+    PdhCloseQuery(hQuery);
+    return NETWORKSend;
+}
+
+//NETWORK - Receive
+double stats::GETNETWORKReceive() {
+    PDH_HQUERY hQuery;
+    PDH_HCOUNTER hCounterWiFi, hCounterEthernet;
+    PDH_FMT_COUNTERVALUE counterValWiFi, counterValEthernet;
+    DWORD dwCounterType;
+
+    double receiveKbps = 0.0;
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {return receiveKbps;}
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Received/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) 
+    {return receiveKbps;}
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Received/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) 
+    {return receiveKbps;}
+
+    if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+        PdhCloseQuery(hQuery);
+        return receiveKbps;
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
+        double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;
+        if (wifiKbps > 0) {
+            this->NETWORKRecieve = wifiKbps;
+            this->NETWORKSourceRecieved = "Wi-Fi";
+        }
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
+        double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;
+        if (ethernetKbps > 0) {
+            this->NETWORKRecieve = ethernetKbps;
+            this->NETWORKSourceRecieved = "Ethernet";
+        }
+    }
+
+    PdhCloseQuery(hQuery);
+    return NETWORKRecieve;
+}
