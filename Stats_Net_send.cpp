@@ -46,9 +46,9 @@ int main() {
             if (wifiKbps > 0) {
                 std::cout << "Active Adapter: Wi-Fi" << std::endl;
                 if (wifiMbps >= 1) {
-                    std::cout << "Wi-Fi Speed: " << std::fixed << std::setprecision(4) << wifiMbps << " Mbps" << std::endl;
+                    std::cout << "Wi-Fi send: " << std::fixed << std::setprecision(4) << wifiMbps << " Mbps" << std::endl;
                 } else {
-                    std::cout << "Wi-Fi Speed: " << std::fixed << std::setprecision(4) << wifiKbps << " Kbps" << std::endl;
+                    std::cout << "Wi-Fi send: " << std::fixed << std::setprecision(4) << wifiKbps << " Kbps" << std::endl;
                 }
             }
         } else {
@@ -57,26 +57,24 @@ int main() {
 
         // Retrieve and format the counter value for Ethernet
         if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
-            double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;    // Convert to Kbps
-            double ethernetMbps = ethernetKbps / 1000;                            // Convert to Mbps
+            double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;  
+            double ethernetMbps = ethernetKbps / 1000;                         
 
             if (ethernetKbps > 0) {
                 std::cout << "Active Adapter: Ethernet" << std::endl;
                 if (ethernetMbps >= 1) {
-                    std::cout << "Ethernet Speed: " << std::fixed << std::setprecision(4) << ethernetMbps << " Mbps" << std::endl;
+                    std::cout << "Ethernet send: " << std::fixed << std::setprecision(4) << ethernetMbps << " Mbps" << std::endl;
                 } else {
-                    std::cout << "Ethernet Speed: " << std::fixed << std::setprecision(4) << ethernetKbps << " Kbps" << std::endl;
+                    std::cout << "Ethernet send: " << std::fixed << std::setprecision(4) << ethernetKbps << " Kbps" << std::endl;
                 }
             }
         } else {
             std::cerr << "Failed to retrieve Ethernet counter value." << std::endl;
         }
 
-        // Wait for a short interval before collecting data again
-        Sleep(1000); // 1 second delay
+        Sleep(1000);
     }
 
-    // Close the query
     PdhCloseQuery(hQuery);
 
     return 0;
