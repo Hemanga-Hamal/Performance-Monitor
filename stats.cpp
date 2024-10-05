@@ -91,7 +91,7 @@ double stats::GETRAMUsed(){
 
 //RAM - Utilization
 double stats::GETRAMUtilization(){
-    RAMUtilization = (GETRAMTotal()/GETRAMTotal()) * 100;
+    RAMUtilization = (GETRAMUsed()/GETRAMTotal()) * 100;
     return RAMUtilization;
 };
 
