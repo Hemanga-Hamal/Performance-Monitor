@@ -1,8 +1,9 @@
 #include "stats.h"
 #include <iostream>
+#include <limits>  // For INT_MAX
 
 int main() {
-    stats systemStats; // Create an instance of the stats class
+    stats systemStats;  // Create an instance of the stats class
     int choice;
 
     do {
@@ -18,8 +19,8 @@ int main() {
 
         // Handle invalid input
         while (std::cin.fail() || choice < 0 || choice > 4) {
-            std::cin.clear(); // Clear the error flag
-            std::cin.ignore(INT_MAX, '\n'); // Ignore invalid input
+            std::cin.clear();  // Clear the error flag
+            std::cin.ignore(INT_MAX, '\n');  // Ignore invalid input
             std::cout << "Invalid choice. Please enter a valid option (0-4): ";
             std::cin >> choice;
         }
@@ -47,8 +48,14 @@ int main() {
 
             case 4:  // NETWORK
                 std::cout << "\n--- Testing NETWORK ---\n";
-                std::cout << "Network Send Speed: " << systemStats.GETNETWORKSend() << std::endl;
-                std::cout << "Network Receive Speed: " << systemStats.GETNETWORKReceive() << std::endl;
+                // Wi-Fi
+                std::cout << "Wi-Fi Send Speed: " << systemStats.GETWiFiSend() << " Kbps" << std::endl;
+                std::cout << "Wi-Fi Receive Speed: " << systemStats.GETWiFiReceive() << " Kbps" << std::endl;
+    
+                // Ethernet
+                std::cout << "Ethernet Send Speed: " << systemStats.GETEthernetSend() << " Kbps" << std::endl;
+                std::cout << "Ethernet Receive Speed: " << systemStats.GETEthernetReceive() << " Kbps" << std::endl;
+                
                 break;
 
             case 0:  // Exit
@@ -56,12 +63,12 @@ int main() {
                 break;
 
             default:
-                // Shouldn't happen due to input validation, but kept for safety
+                // This block shouldn't be reached due to input validation, but is kept for safety
                 std::cout << "Invalid choice. Please choose a valid option (1-4)." << std::endl;
                 break;
         }
 
-    } while (choice != 0); // Keep running until the user chooses to exit (option 0)
+    } while (choice != 0); 
 
     return 0;
 }

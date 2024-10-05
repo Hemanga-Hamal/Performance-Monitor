@@ -3,49 +3,54 @@
 
 #include <iostream>
 #include <string>
-class stats{
+
+class stats {
 protected:
-    //CPU
+    // CPU
     double CPUFrequency;
     double CPUUtilization;
     
-    //RAM
+    // RAM
     double RAMTotal;
     double RAMUsed;
     double RAMUtilization;
 
-    //DISK
+    // DISK
     double DISKTotal;
     double DISKUsed;
     double DISKUtilization;
 
-    //NETWORK
+    // NETWORK
     std::string NETWORKSourceSend;
-    std::string NETWORKSourceRecieved;
-    double NETWORKSend;
-    double NETWORKRecieve;
+    std::string NETWORKSourceReceive;
+    double WiFiSend;
+    double WiFiReceive;
+    double EthernetSend;
+    double EthernetReceive;
 
 public:
     stats();
     ~stats();
 
-    //CPU
+    // CPU
     double GetCPUFrequency();
     double GetCPUUtilization();
 
-    //RAM
+    // RAM
     double GETRAMTotal();
     double GETRAMUsed();
     double GETRAMUtilization();
 
-    //DISK
+    // DISK
     double GETDISKTotal();
     double GETDISKUsed();
     double GETDISKUtilization();
 
-    //NETWORK 
-    double GETNETWORKSend();
-    double GETNETWORKReceive();
+    // NETWORK 
+    double GETWiFiSend();
+    double GETWiFiReceive();
+    double GETEthernetSend();
+    double GETEthernetReceive();
 };
 
 #endif
