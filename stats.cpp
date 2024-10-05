@@ -39,16 +39,22 @@ double stats::GetCPUFrequency(){
     DWORD64 startTime, endTime;
 
     QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
     startTime = __rdtsc();
+
     Sleep(1000);
+
     endTime = __rdtsc();
     QueryPerformanceCounter(&end);
 
     double timeDiff = static_cast<double>(end.QuadPart - start.QuadPart) / frequency.QuadPart;
-    CPUFrequency = static_cast<double>(endTime - startTime) / (timeDiff * 1000000);
+    CPUFrequency = static_cast<double>(endTime - startTime) / (timeDiff * 1000000); 
+
+    if (CPUFrequency < 0) {CPUFrequency = 0.0;}
 
     return CPUFrequency;
 };
+
 
 //Cpu - Utilization
 double stats::GetCPUUtilization(){
@@ -120,43 +126,57 @@ double stats::GETDISKUtilization(){
     return DISKUtilization;
 };
 
-//NETWORK - Send
-double stats::GETNETWORKSend(){
+double stats::GETNETWORKSend() {
     PDH_HQUERY hQuery;
     PDH_HCOUNTER hCounterWiFi, hCounterEthernet;
     PDH_FMT_COUNTERVALUE counterValWiFi, counterValEthernet;
     DWORD dwCounterType;
 
     double sendKbps = 0.0;
-    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {return sendKbps;}
-    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Sent/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) 
-    {return sendKbps;}
-    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Sent/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) 
-    {return sendKbps;}
 
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {
+        return sendKbps;
+    }
+
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Sent/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) {
+        PdhCloseQuery(hQuery);
+        return sendKbps;
+    }
+
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Sent/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) {
+        PdhCloseQuery(hQuery);
+        return sendKbps;
+    }
+
+    // Allow some time for data to accumulate
+    Sleep(1000);
+
+    // Collect data
     if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
         PdhCloseQuery(hQuery);
         return sendKbps;
     }
 
+    // Retrieve the counter value for Wi-Fi
     if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
-        double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000; 
+        double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;
         if (wifiKbps > 0) {
-            this->NETWORKSend = wifiKbps;
+            sendKbps = wifiKbps;
             this->NETWORKSourceSend = "Wi-Fi";
         }
     }
 
+    // Retrieve the counter value for Ethernet
     if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
         double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;
         if (ethernetKbps > 0) {
-            this->NETWORKSend = ethernetKbps;
+            sendKbps = ethernetKbps;
             this->NETWORKSourceSend = "Ethernet";
         }
     }
 
     PdhCloseQuery(hQuery);
-    return NETWORKSend;
+    return sendKbps; // Returns the last valid send rate
 }
 
 //NETWORK - Receive
