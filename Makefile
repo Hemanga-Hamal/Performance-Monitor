@@ -17,9 +17,9 @@ SRC_FN =  stats.cpp main.cpp
 OBJ_FN = $(SRC_FN:.cpp=.o)
 EXEC_FN = Functions_test.exe
 
-# Project files for Graphicv0
+# Project files for Graphicv0	
 SRC_Graph =  Graphicv0.cpp
-OBJ_Graph = $(SRC_FN:.cpp=.o)
+OBJ_Graph = $(SRC_Graph:.cpp=.o)
 EXEC_Graph = Graphicv0.exe
 
 # Default target
