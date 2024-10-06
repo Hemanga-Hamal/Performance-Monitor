@@ -10,7 +10,9 @@
 #include <iomanip> 
 #include <limits>
 
+#ifdef _MSC_VER
 #pragma comment(lib, "pdh.lib")
+#endif
 
 // Constructor
 stats::stats(){
