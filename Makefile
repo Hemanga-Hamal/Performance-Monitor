@@ -17,12 +17,21 @@ SRC_FN =  stats.cpp main.cpp
 OBJ_FN = $(SRC_FN:.cpp=.o)
 EXEC_FN = Functions_test.exe
 
-# Default target
-all: $(EXEC_FN) 
+# Project files for Graphicv0
+SRC_Graph =  Graphicv0.cpp
+OBJ_Graph = $(SRC_FN:.cpp=.o)
+EXEC_Graph = Graphicv0.exe
 
-# Link the executable for PL_test with full static linking -> Player
+# Default target
+all: $(EXEC_FN) $(EXEC_Graph)
+
+# Link the executable for PL_test with full static linking -> Functions_test
 $(EXEC_FN): $(OBJ_FN)
 	$(CXX) -o $(EXEC_FN) $(OBJ_FN) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+
+# Link the executable for PL_test with full static linking -> Graphicv0
+$(EXEC_Graph): $(OBJ_Graph)
+	$(CXX) -o $(EXEC_Graph) $(OBJ_Graph) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
 # Compile C++ source files to object files
 %.o: %.cpp
