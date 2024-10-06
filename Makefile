@@ -24,7 +24,7 @@ $(EXEC): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJS) $(LDFLAGS)
 
 # Compile source files into object files
-%.o: %.cpp stats.h
+%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean the project directory by removing object files and the executable

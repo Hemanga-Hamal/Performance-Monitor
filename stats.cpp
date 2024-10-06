@@ -129,4 +129,162 @@ double stats::GETDISKUtilization(){
     DISKUtilization = (GETDISKUsed()/GETDISKTotal()) * 100;
     return DISKUtilization;
 };
+// NETWORK - Wi-Fi Send
+double stats::GETWiFiSend() {
+    PDH_HQUERY hQuery = nullptr;
+    PDH_HCOUNTER hCounterWiFi;
+    PDH_FMT_COUNTERVALUE counterValWiFi;
+    DWORD dwCounterType;
 
+    NETWORKSourceSend = "Wi-Fi";
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {
+        std::cerr << "Failed to open query." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Sent/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) {
+        std::cerr << "Failed to add Wi-Fi counter." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        Sleep(1000);
+        if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+            std::cerr << "Failed to collect data." << std::endl;
+            PdhCloseQuery(hQuery);
+            return 0.0;
+        }
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
+        double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;
+        WiFiSend = wifiKbps;
+    } else {
+        std::cerr << "Failed to retrieve Wi-Fi counter value." << std::endl;
+    }
+
+    PdhCloseQuery(hQuery);
+    return WiFiSend;
+}
+
+// NETWORK - Ethernet Send
+double stats::GETEthernetSend() {
+    PDH_HQUERY hQuery = nullptr;
+    PDH_HCOUNTER hCounterEthernet;
+    PDH_FMT_COUNTERVALUE counterValEthernet;
+    DWORD dwCounterType;
+
+    NETWORKSourceSend = "Ethernet";
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {
+        std::cerr << "Failed to open query." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Sent/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) {
+        std::cerr << "Failed to add Ethernet counter." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        Sleep(1000);
+        if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+            std::cerr << "Failed to collect data." << std::endl;
+            PdhCloseQuery(hQuery);
+            return 0.0;
+        }
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
+        double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;
+        EthernetSend = ethernetKbps;
+    } else {
+        std::cerr << "Failed to retrieve Ethernet counter value." << std::endl;
+    }
+
+    PdhCloseQuery(hQuery);
+    return EthernetSend;
+}
+
+// NETWORK - Wi-Fi Receive
+double stats::GETWiFiReceive() {
+    PDH_HQUERY hQuery = nullptr;
+    PDH_HCOUNTER hCounterWiFi;
+    PDH_FMT_COUNTERVALUE counterValWiFi;
+    DWORD dwCounterType;
+
+    NETWORKSourceReceive = "Wi-Fi";
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {
+        std::cerr << "Failed to open query." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(MediaTek Wi-Fi 6 MT7921 Wireless LAN Card)\\Bytes Received/sec", 0, &hCounterWiFi) != ERROR_SUCCESS) {
+        std::cerr << "Failed to add Wi-Fi counter." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        Sleep(1000);
+        if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+            std::cerr << "Failed to collect data." << std::endl;
+            PdhCloseQuery(hQuery);
+            return 0.0;
+        }
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterWiFi, PDH_FMT_DOUBLE, &dwCounterType, &counterValWiFi) == ERROR_SUCCESS) {
+        double wifiKbps = (counterValWiFi.doubleValue * 8) / 1000;
+        WiFiReceive = wifiKbps;
+    } else {
+        std::cerr << "Failed to retrieve Wi-Fi counter value." << std::endl;
+    }
+
+    PdhCloseQuery(hQuery);
+    return WiFiReceive;
+}
+
+// NETWORK - Ethernet Receive
+double stats::GETEthernetReceive() {
+    PDH_HQUERY hQuery = nullptr;
+    PDH_HCOUNTER hCounterEthernet;
+    PDH_FMT_COUNTERVALUE counterValEthernet;
+    DWORD dwCounterType;
+
+    NETWORKSourceReceive = "Ethernet";
+    if (PdhOpenQuery(NULL, 0, &hQuery) != ERROR_SUCCESS) {
+        std::cerr << "Failed to open query." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    if (PdhAddCounterW(hQuery, L"\\Network Interface(Realtek PCIe GBE Family Controller)\\Bytes Received/sec", 0, &hCounterEthernet) != ERROR_SUCCESS) {
+        std::cerr << "Failed to add Ethernet counter." << std::endl;
+        PdhCloseQuery(hQuery);
+        return 0.0;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        Sleep(1000);
+        if (PdhCollectQueryData(hQuery) != ERROR_SUCCESS) {
+            std::cerr << "Failed to collect data." << std::endl;
+            PdhCloseQuery(hQuery);
+            return 0.0;
+        }
+    }
+
+    if (PdhGetFormattedCounterValue(hCounterEthernet, PDH_FMT_DOUBLE, &dwCounterType, &counterValEthernet) == ERROR_SUCCESS) {
+        double ethernetKbps = (counterValEthernet.doubleValue * 8) / 1000;
+        EthernetReceive = ethernetKbps;
+    } else {
+        std::cerr << "Failed to retrieve Ethernet counter value." << std::endl;
+    }
+
+    PdhCloseQuery(hQuery);
+    return EthernetReceive;
+}
