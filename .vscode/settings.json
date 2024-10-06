@@ -65,5 +65,9 @@
 		"cinttypes": "cpp",
 		"typeinfo": "cpp",
 		"variant": "cpp"
+	},
+	"files.associations": {
+		"ostream": "cpp",
+		"iomanip": "cpp"
 	}
 }
