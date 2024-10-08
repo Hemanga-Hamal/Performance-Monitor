@@ -11,7 +11,7 @@ void updateMetrics(float& cpu, float& ram, float& network, float& disk, int fram
 int main() {
     int baseWidth = 800;
     int baseHeight = 600;
-    
+
     int screenWidth = baseWidth;
     int screenHeight = baseHeight;
 
@@ -23,7 +23,12 @@ int main() {
     Bar::Theme barTheme;
     Bar::Dimensions barDimensions;
 
-    // Initialize bars without labels
+    const float BASE_BAR_WIDTH = 150;
+    const float BASE_BAR_HEIGHT = 20;
+
+    barDimensions.barWidth = BASE_BAR_WIDTH;
+    barDimensions.barHeight = BASE_BAR_HEIGHT;
+
     Bar cpuBar(barTheme, barDimensions, Bar::Config(0, 100));
     Bar ramBar(barTheme, barDimensions, Bar::Config(0, 100));
     Bar networkBar(barTheme, barDimensions, Bar::Config(0, 100));
@@ -35,13 +40,19 @@ int main() {
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
 
-        // Calculate scaling factors
         float xScale = (float)screenWidth / baseWidth;
         float yScale = (float)screenHeight / baseHeight;
+        
+        float widthScale = xScale;
+        float heightScale = yScale;
 
-        // Update bar dimensions dynamically based on scaling
-        barDimensions.barWidth = 400 * xScale;
-        barDimensions.barHeight = 30 * yScale;
+        barDimensions.barWidth = BASE_BAR_WIDTH * widthScale;
+        barDimensions.barHeight = BASE_BAR_HEIGHT * heightScale;
+
+        cpuBar.setDimensions(barDimensions);
+        ramBar.setDimensions(barDimensions);
+        networkBar.setDimensions(barDimensions);
+        diskBar.setDimensions(barDimensions);
 
         Vector2 quad1 = { (float)(screenWidth / 4), (float)(screenHeight / 4) };
         Vector2 quad2 = { (float)((screenWidth / 4) * 3), (float)(screenHeight / 4) };
@@ -51,7 +62,6 @@ int main() {
         float cpu, ram, network, disk;
         updateMetrics(cpu, ram, network, disk, frameCounter);
 
-        // Update bar values
         cpuBar.setConfig(Bar::Config(cpu, 100));
         ramBar.setConfig(Bar::Config(ram, 100));
         networkBar.setConfig(Bar::Config(network, 100));
@@ -60,42 +70,56 @@ int main() {
         BeginDrawing();
             ClearBackground(BLACK);
 
-            // Draw grid lines
             DrawLine(0, screenHeight / 2, screenWidth, screenHeight / 2, WHITE);
             DrawLine(screenWidth / 2, 0, screenWidth / 2, screenHeight, WHITE);
 
-            // Calculate positions for bars in each quadrant
-            Vector2 cpuPosition = { quad1.x - cpuBar.getwidth() / 2, quad1.y + screenHeight / 8 };
-            Vector2 ramPosition = { quad2.x - ramBar.getwidth() / 2, quad2.y + screenHeight / 8 };
-            Vector2 networkPosition = { quad3.x - networkBar.getwidth() / 2, quad3.y + screenHeight / 8 };
-            Vector2 diskPosition = { quad4.x - diskBar.getwidth() / 2, quad4.y + screenHeight / 8 };
+            float verticalOffset = screenHeight / 8;
+            
+            Vector2 cpuPosition = { 
+                quad1.x - (barDimensions.barWidth / 2), 
+                quad1.y - (barDimensions.barHeight / 2) + verticalOffset * heightScale
+            };
+            Vector2 ramPosition = { 
+                quad2.x - (barDimensions.barWidth / 2), 
+                quad2.y - (barDimensions.barHeight / 2) + verticalOffset * heightScale
+            };
+            Vector2 networkPosition = { 
+                quad3.x - (barDimensions.barWidth / 2), 
+                quad3.y - (barDimensions.barHeight / 2) + verticalOffset * heightScale
+            };
+            Vector2 diskPosition = { 
+                quad4.x - (barDimensions.barWidth / 2), 
+                quad4.y - (barDimensions.barHeight / 2) + verticalOffset * heightScale
+            };
 
-            // Draw bars
             cpuBar.draw(cpuPosition);
             ramBar.draw(ramPosition);
             networkBar.draw(networkPosition);
             diskBar.draw(diskPosition);
 
-            // Draw labels above the bars
             const char* CPU = "CPU";
             const char* RAM = "RAM";
             const char* Network = "Network";
             const char* Disk = "Disk";
 
-            int fontSize = (int)(20 * yScale); // Scale font size dynamically
+            int fontSize = (int)(20 * heightScale);
+            fontSize = (fontSize < 10) ? 10 : fontSize;
 
-            // Calculate text width and height for dynamic centering
             int textWidth1 = MeasureText(CPU, fontSize);
             int textWidth2 = MeasureText(RAM, fontSize);
             int textWidth3 = MeasureText(Network, fontSize);
             int textWidth4 = MeasureText(Disk, fontSize);
-            int textHeight = fontSize;
 
-            // Draw text centered in each quadrant
-            DrawText(CPU, quad1.x - textWidth1 / 2, quad1.y - textHeight / 2 - screenHeight / 5, fontSize, WHITE);
-            DrawText(RAM, quad2.x - textWidth2 / 2, quad2.y - textHeight / 2 - screenHeight / 5, fontSize, WHITE);
-            DrawText(Network, quad3.x - textWidth3 / 2, quad3.y - textHeight / 2 - screenHeight / 5, fontSize, WHITE);
-            DrawText(Disk, quad4.x - textWidth4 / 2, quad4.y - textHeight / 2 - screenHeight / 5, fontSize, WHITE);
+            float labelOffset = verticalOffset * heightScale * 2;
+            
+            DrawText(CPU, quad1.x - textWidth1 / 2, 
+                    cpuPosition.y - labelOffset, fontSize, WHITE);
+            DrawText(RAM, quad2.x - textWidth2 / 2, 
+                    ramPosition.y - labelOffset, fontSize, WHITE);
+            DrawText(Network, quad3.x - textWidth3 / 2, 
+                    networkPosition.y - labelOffset, fontSize, WHITE);
+            DrawText(Disk, quad4.x - textWidth4 / 2, 
+                    diskPosition.y - labelOffset, fontSize, WHITE);
 
         EndDrawing();
 
