@@ -1,4 +1,4 @@
-#include "stats.h"
+#include "Stats.h"
 
 #include <iostream>
 #include <string>
