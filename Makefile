@@ -27,8 +27,13 @@ SRC_Graph_Graph =  Graphic_Graph.cpp Gauge.cpp
 OBJ_Graph_Graph = $(SRC_Graph_Graph:.cpp=.o)
 EXEC_Graph_Graph = Graphic_Graph.exe
 
+# Project files for Graphic_Bar
+SRC_Graph_Bar =  Graphic_Bar.cpp Bar.cpp 
+OBJ_Graph_Bar = $(SRC_Graph_Bar:.cpp=.o)
+EXEC_Graph_Bar = Graphic_Bar.exe
+
 # Default target
-all: $(EXEC_FN) $(EXEC_Graph) $(EXEC_Graph_Graph)
+all: $(EXEC_FN) $(EXEC_Graph) $(EXEC_Graph_Graph) $(EXEC_Graph_Bar)
 
 # Link the executable for PL_test with full static linking -> Functions_test
 $(EXEC_FN): $(OBJ_FN)
@@ -41,6 +46,10 @@ $(EXEC_Graph): $(OBJ_Graph)
 # Link the executable for PL_test with full static linking -> Graphic_Graph
 $(EXEC_Graph_Graph): $(OBJ_Graph_Graph)
 	$(CXX) -o $(EXEC_Graph_Graph) $(OBJ_Graph_Graph) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+
+#Link the executable for PL_test with full static linking -> Graphic_Bar
+$(EXEC_Graph_Bar): $(OBJ_Graph_Bar)
+	$(CXX) -o $(EXEC_Graph_Bar) $(OBJ_Graph_Bar) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
 # Compile C++ source files to object files
 %.o: %.cpp

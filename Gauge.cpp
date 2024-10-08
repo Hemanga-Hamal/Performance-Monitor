@@ -47,8 +47,7 @@ Gauge::Theme::Theme() :
     backgroundColor({20, 20, 20, 255}),
     arcBackgroundColor({40, 40, 40, 255}),
     arcActiveColor({150, 150, 150, 255}),
-    textColor(WHITE),
-    labelColor(GRAY) {}
+    textColor(WHITE) {}
 
 // Default constructor for Dimensions struct
 Gauge::Dimensions::Dimensions() :
@@ -56,8 +55,6 @@ Gauge::Dimensions::Dimensions() :
     scaleRatio(1.0f),
     arcThickness(0.2f),
     textSizeRatio(0.2f),
-    labelSizeRatio(0.1f),
-    labelOffset(30.0f),
     minSize(50.0f),
     maxSize(1000.0f) {}
 
@@ -65,7 +62,6 @@ Gauge::Dimensions::Dimensions() :
 Gauge::Config::Config() :
     startAngle(150.0f),
     totalAngle(240.0f),
-    label("Load"),
     autoScale(true),
     screenSizeRatio(0.3f) {}
 
@@ -114,15 +110,16 @@ void Gauge::draw(Vector2 center) const {
     float endAngle = config.startAngle + config.totalAngle;
     float loadAngle = config.startAngle + (value / 100.0f) * config.totalAngle;
 
+    // Draw background arc
     DrawArc(center, innerRadius, outerRadius, config.startAngle, endAngle, theme.arcBackgroundColor);
 
+    // Draw active arc if the value is greater than 0
     if (value > 0) {
         DrawArc(center, innerRadius, outerRadius, config.startAngle, loadAngle, theme.arcActiveColor);
     }
 
+    // Draw value in the center of the gauge
     float valueFontSize = gaugeSize * dims.textSizeRatio * dims.scaleRatio;
-    float labelFontSize = gaugeSize * dims.labelSizeRatio * dims.scaleRatio;
-
     const char* valueText = TextFormat("%.0f%%", value);
     Vector2 textSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 0);
     DrawText(valueText, 
@@ -130,11 +127,4 @@ void Gauge::draw(Vector2 center) const {
              center.y - valueFontSize / 2, 
              valueFontSize, 
              theme.textColor);
-
-    textSize = MeasureTextEx(GetFontDefault(), config.label, labelFontSize, 0);
-    DrawText(config.label, 
-             center.x - textSize.x / 2, 
-             center.y + dims.labelOffset * dims.scaleRatio, 
-             labelFontSize, 
-             theme.labelColor);
 }

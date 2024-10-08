@@ -25,11 +25,11 @@ int main() {
         Vector2 quad4 = {(float)((screenWidth/4)*3) , (float)((screenHeight/4)*3)};
 
         BeginDrawing();
-            ClearBackground(WHITE);
+            ClearBackground(BLACK);
 
             // Quadrants
-            DrawLine(0, screenHeight/2, screenWidth, screenHeight/2, BLACK); 
-            DrawLine(screenWidth/2, 0, screenWidth/2, screenHeight, BLACK);
+            DrawLine(0, screenHeight/2, screenWidth, screenHeight/2, WHITE); 
+            DrawLine(screenWidth/2, 0, screenWidth/2, screenHeight, WHITE);
 
             // Texts in each quadrant
             const char* CPU = "CPU";
@@ -46,10 +46,10 @@ int main() {
             int textHeight = fontSize;
 
             // Draw text centered in each quadrant
-            DrawText(CPU    , quad1.x - textWidth1/2    , quad1.y - textHeight/2 - screenHeight/5, fontSize, BLACK);
-            DrawText(RAM    , quad2.x - textWidth2/2    , quad2.y - textHeight/2 - screenHeight/5, fontSize, BLACK);
-            DrawText(Network, quad3.x - textWidth3/2    , quad3.y - textHeight/2 - screenHeight/5, fontSize, BLACK);
-            DrawText(Disk   , quad4.x - textWidth4/2    , quad4.y - textHeight/2 - screenHeight/5, fontSize, BLACK);
+            DrawText(CPU    , quad1.x - textWidth1/2    , quad1.y - textHeight/2 - screenHeight/5, fontSize, WHITE);
+            DrawText(RAM    , quad2.x - textWidth2/2    , quad2.y - textHeight/2 - screenHeight/5, fontSize, WHITE);
+            DrawText(Network, quad3.x - textWidth3/2    , quad3.y - textHeight/2 - screenHeight/5, fontSize, WHITE);
+            DrawText(Disk   , quad4.x - textWidth4/2    , quad4.y - textHeight/2 - screenHeight/5, fontSize, WHITE);
 
         EndDrawing();
     }

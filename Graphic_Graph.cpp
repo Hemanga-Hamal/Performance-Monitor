@@ -14,20 +14,19 @@ int main() {
     SetWindowMinSize(200, 200);
     SetTargetFPS(60);
 
-    // Create custom gauges for each quadrant with different labels
+    // Create custom gauges for each quadrant
     Gauge::Dimensions dims;
     dims.baseSize = 200.0f;
     dims.scaleRatio = 1.0f;   
     dims.arcThickness = 0.15f;   
     dims.textSizeRatio = 0.25f;  
-    dims.labelOffset = 40.0f;
 
-    // Custom configuration for each gauge
+    // Custom configuration for each gauge (no labels)
     Gauge::Config configCPU, configRAM, configNetwork, configDisk;
-    configCPU.label = "CPU";
-    configRAM.label = "RAM";
-    configNetwork.label = "Network";
-    configDisk.label = "Disk";
+    configCPU.autoScale = true; 
+    configRAM.autoScale = true; 
+    configNetwork.autoScale = true; 
+    configDisk.autoScale = true; 
 
     // Create the gauges with the specific settings for each quadrant
     Gauge gaugeCPU(Gauge::Theme(), dims, configCPU);
@@ -36,7 +35,7 @@ int main() {
     Gauge gaugeDisk(Gauge::Theme(), dims, configDisk);
 
     // Simulate some usage values for each gauge
-    float cpuValue = 30.0f;
+    float cpuValue = 50.0f;
     float ramValue = 50.0f;    
     float networkValue = 70.0f;  
     float diskValue = 40.0f;   

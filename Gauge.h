@@ -20,9 +20,8 @@ public:
         Color arcBackgroundColor;
         Color arcActiveColor;
         Color textColor;
-        Color labelColor;
 
-        Theme(); // Default constructor
+        Theme();
     };
 
     struct Dimensions {
@@ -30,22 +29,19 @@ public:
         float scaleRatio;         // Scale multiplier
         float arcThickness;       // Thickness of the arc
         float textSizeRatio;      // Text size relative to gauge
-        float labelSizeRatio;     // Label size relative to gauge
-        float labelOffset;        // Vertical label offset
         float minSize;            // Minimum size threshold
         float maxSize;            // Maximum size threshold
 
-        Dimensions(); // Default constructor
+        Dimensions();
     };
 
     struct Config {
         float startAngle;         // Start angle in degrees
         float totalAngle;         // Total sweep angle in degrees
-        const char* label;        // Label text
-        bool autoScale;           // Whether to auto-scale with screen size
-        float screenSizeRatio;    // Ratio of screen size for autoScale
+        bool autoScale;
+        float screenSizeRatio;
 
-        Config(); // Default constructor
+        Config();
     };
 
 private:
@@ -59,13 +55,13 @@ public:
           const Dimensions& dimensions = Dimensions(),
           const Config& config = Config());
 
-    void setValue(float newValue); // Set gauge value
-    void setScale(float scale);    // Set the scaling factor
-    void setBaseSize(float size);  // Set base size of the gauge
-    void setArcThickness(float thickness); // Set thickness of the arc
+    void setValue(float newValue);
+    void setScale(float scale);
+    void setBaseSize(float size);
+    void setArcThickness(float thickness);
 
-    float calculateGaugeSize() const; // Calculate the size of the gauge
-    void draw(Vector2 center) const;  // Draw the gauge
+    float calculateGaugeSize() const;
+    void draw(Vector2 center) const;
 };
 
-#endif // GAUGE_H
+#endif
