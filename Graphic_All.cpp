@@ -106,10 +106,16 @@ int main() {
             float verticalOffset = screenHeight / 5;
 
             // Bar positions
-            Vector2 cpuPosition = { quad1.x - (barDimensions.barWidth / 2), quad1.y + verticalOffset * 0.85f };
-            Vector2 ramPosition = { quad2.x - (barDimensions.barWidth / 2), quad2.y + verticalOffset * 0.85f };
-            Vector2 networkPosition = { quad3.x - (barDimensions.barWidth / 2), quad3.y + verticalOffset * 0.85f };
-            Vector2 diskPosition = { quad4.x - (barDimensions.barWidth / 2), quad4.y + verticalOffset * 0.85f };
+            Vector2 cpuPosition = { quad1.x - (barDimensions.barWidth / 2), quad1.y + verticalOffset * 0.80f };
+            Vector2 ramPosition = { quad2.x - (barDimensions.barWidth / 2), quad2.y + verticalOffset * 0.80f };
+            Vector2 networkPosition = { quad3.x - (barDimensions.barWidth / 2), quad3.y + verticalOffset * 0.0f };
+            Vector2 diskPosition = { quad4.x - (barDimensions.barWidth / 2), quad4.y + verticalOffset * 0.0f };
+
+            // Calculate bar centers
+            Vector2 cpuBarCenter = { cpuPosition.x + barDimensions.barWidth/2, cpuPosition.y + barDimensions.barHeight/2 };
+            Vector2 ramBarCenter = { ramPosition.x + barDimensions.barWidth/2, ramPosition.y + barDimensions.barHeight/2 };
+            Vector2 networkBarCenter = { networkPosition.x + barDimensions.barWidth/2, networkPosition.y + barDimensions.barHeight/2 };
+            Vector2 diskBarCenter = { diskPosition.x + barDimensions.barWidth/2, diskPosition.y + barDimensions.barHeight/2 };
 
             // Draw bars
             cpuBar.draw(cpuPosition);
@@ -120,8 +126,10 @@ int main() {
             // Draw gauges in each quadrant
             gaugeCPU.draw(quad1);
             gaugeRAM.draw(quad2);
+            /* 
             gaugeNetwork.draw(quad3);
             gaugeDisk.draw(quad4);
+            */
 
             // Draw text labels
             const char* CPU = "CPU";
@@ -139,10 +147,44 @@ int main() {
 
             float labelOffset = verticalOffset * 2;
 
-            DrawText(CPU, quad1.x - textWidth1 / 2, cpuPosition.y - labelOffset, fontSize, WHITE);
-            DrawText(RAM, quad2.x - textWidth2 / 2, ramPosition.y - labelOffset, fontSize, WHITE);
-            DrawText(Network, quad3.x - textWidth3 / 2, networkPosition.y - labelOffset, fontSize, WHITE);
-            DrawText(Disk, quad4.x - textWidth4 / 2, diskPosition.y - labelOffset, fontSize, WHITE);
+            // Calculate text positions
+            Vector2 cpuTextPos = { quad1.x - textWidth1 / 2, cpuPosition.y - labelOffset };
+            Vector2 ramTextPos = { quad2.x - textWidth2 / 2, ramPosition.y - labelOffset };
+            Vector2 networkTextPos = { quad3.x - textWidth3 / 2, networkPosition.y - labelOffset + verticalOffset * 0.80f };
+            Vector2 diskTextPos = { quad4.x - textWidth4 / 2, diskPosition.y - labelOffset + verticalOffset * 0.80f };
+
+            // Calculate text centers
+            Vector2 cpuTextCenter = { cpuTextPos.x + textWidth1/2, cpuTextPos.y + fontSize/2 };
+            Vector2 ramTextCenter = { ramTextPos.x + textWidth2/2, ramTextPos.y + fontSize/2 };
+            Vector2 networkTextCenter = { networkTextPos.x + textWidth3/2, networkTextPos.y + fontSize/2 };
+            Vector2 diskTextCenter = { diskTextPos.x + textWidth4/2, diskTextPos.y + fontSize/2 };
+
+            // Draw texts
+            DrawText(CPU, cpuTextPos.x, cpuTextPos.y, fontSize, WHITE);
+            DrawText(RAM, ramTextPos.x, ramTextPos.y, fontSize, WHITE);
+            DrawText(Network, networkTextPos.x, networkTextPos.y, fontSize, WHITE);
+            DrawText(Disk, diskTextPos.x, diskTextPos.y, fontSize, WHITE);
+
+            // Draw center dots
+            // Gauge centers (Red)
+            DrawCircle(quad1.x, quad1.y, 3, RED);
+            DrawCircle(quad2.x, quad2.y, 3, RED);
+            /*
+            DrawCircle(quad3.x, quad3.y, 3, RED);
+            DrawCircle(quad4.x, quad4.y, 3, RED);
+            */
+
+            // Bar centers (Green)
+            DrawCircle(cpuBarCenter.x, cpuBarCenter.y, 3, GREEN);
+            DrawCircle(ramBarCenter.x, ramBarCenter.y, 3, GREEN);
+            DrawCircle(networkBarCenter.x, networkBarCenter.y, 3, GREEN);
+            DrawCircle(diskBarCenter.x, diskBarCenter.y, 3, GREEN);
+
+            // Text centers (Blue)
+            DrawCircle(cpuTextCenter.x, cpuTextCenter.y, 3, BLUE);
+            DrawCircle(ramTextCenter.x, ramTextCenter.y, 3, BLUE);
+            DrawCircle(networkTextCenter.x, networkTextCenter.y, 3, BLUE);
+            DrawCircle(diskTextCenter.x, diskTextCenter.y, 3, BLUE);
 
         EndDrawing();
 
