@@ -1,4 +1,4 @@
-#include "stats.h"
+#include "Stats.h"
 
 #include <iostream>
 #include <string>
@@ -10,7 +10,9 @@
 #include <iomanip> 
 #include <limits>
 
+#ifdef _MSC_VER
 #pragma comment(lib, "pdh.lib")
+#endif
 
 // Constructor
 stats::stats(){
