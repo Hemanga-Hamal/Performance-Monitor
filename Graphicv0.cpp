@@ -184,25 +184,6 @@ int main() {
             DrawText(EtherRecvLabel, etherRecvTextPos.x + NETWORKCentering, etherRecvTextPos.y, fontSize, WHITE);
             DrawText(Disk, diskTextPos.x, diskTextPos.y, fontSize, WHITE);
 
-            // Calculate centers for debug visualization
-            Vector2 cpuBarCenter = { cpuPosition.x + barDimensions.barWidth/2, cpuPosition.y + barDimensions.barHeight/2 };
-            Vector2 ramBarCenter = { ramPosition.x + barDimensions.barWidth/2, ramPosition.y + barDimensions.barHeight/2 };
-            Vector2 diskBarCenter = { diskPosition.x + barDimensions.barWidth/2, quad4.y + barDimensions.barHeight/2 };
-
-            Vector2 cpuTextCenter = { cpuTextPos.x + textWidth1/2, cpuTextPos.y + fontSize/2 };
-            Vector2 ramTextCenter = { ramTextPos.x + textWidth2/2, ramTextPos.y + fontSize/2 };
-            Vector2 diskTextCenter = { diskTextPos.x + textWidth4/2, diskTextPos.y + fontSize/2 };
-
-            // Draw debug centers
-            DrawCircle(quad1.x, quad1.y, 3, RED);
-            DrawCircle(quad2.x, quad2.y, 3, RED);
-            DrawCircle(cpuBarCenter.x, cpuBarCenter.y, 3, GREEN);
-            DrawCircle(ramBarCenter.x, ramBarCenter.y, 3, GREEN);
-            DrawCircle(diskBarCenter.x, diskBarCenter.y, 3, GREEN);
-            DrawCircle(cpuTextCenter.x, cpuTextCenter.y, 3, BLUE);
-            DrawCircle(ramTextCenter.x, ramTextCenter.y, 3, BLUE);
-            DrawCircle(diskTextCenter.x, diskTextCenter.y, 3, BLUE);
-        }
         EndDrawing();
 
         frameCounter++;
