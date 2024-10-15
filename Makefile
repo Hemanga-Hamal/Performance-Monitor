@@ -7,7 +7,7 @@ CXXFLAGS = -std=c++17 -Wall -O2 -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/extern
 LDFLAGS = -L$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src/external
 
 # Full static linking
-STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh
+STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh - mwindows
 
 # Raylib linking (assuming static library is available)
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
@@ -39,10 +39,7 @@ $(EXEC_GraphicV0): $(OBJ_GraphicV0)
 
 # Clean up build artifacts
 clean:
-ifeq ($(OS),Windows_NT)
-	del /q *.o *.exe
-else
-	rm -f *.o *.exe
-endif
+	@echo Cleaning up build artifacts...
+	-@del /q *.o *.exe 2> NUL || rm -f *.o *.exe
 
 .PHONY: all clean
