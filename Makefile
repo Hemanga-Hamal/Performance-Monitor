@@ -7,7 +7,7 @@ CXXFLAGS = -std=c++17 -Wall -O2 -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/extern
 LDFLAGS = -L$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src/external
 
 # Full static linking
-STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh - mwindows
+STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -mwindows
 
 # Raylib linking (assuming static library is available)
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)

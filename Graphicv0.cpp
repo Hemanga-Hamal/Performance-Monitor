@@ -25,19 +25,13 @@ int main() {
     SetWindowMinSize(200, 200);
     SetTargetFPS(60);
 
-    // Gauge setup
-    Gauge::Dimensions dims;
-    dims.baseSize = 200.0f;
-    dims.scaleRatio = 1.0f;
-    dims.arcThickness = 0.15f;
-    dims.textSizeRatio = 0.25f;
+    //Gauge setup
+    Gauge::Theme gaugeTheme;
+    Gauge::Dimensions gaugeDimensions;
+    Gauge::Config gaugeConfig;
+    Gauge gaugeCPU(gaugeTheme, gaugeDimensions, gaugeConfig);
+    Gauge gaugeRAM(gaugeTheme, gaugeDimensions, gaugeConfig);
 
-    Gauge::Config configCPU, configRAM;
-    configCPU.autoScale = true;
-    configRAM.autoScale = true;
-
-    Gauge gaugeCPU(Gauge::Theme(), dims, configCPU);
-    Gauge gaugeRAM(Gauge::Theme(), dims, configRAM);
 
     // Bar setup
     const float BASE_BAR_WIDTH = 150;
@@ -184,6 +178,25 @@ int main() {
             DrawText(EtherRecvLabel, etherRecvTextPos.x + NETWORKCentering, etherRecvTextPos.y, fontSize, WHITE);
             DrawText(Disk, diskTextPos.x, diskTextPos.y, fontSize, WHITE);
 
+            // Calculate centers for debug visualization
+            Vector2 cpuBarCenter = { cpuPosition.x + barDimensions.barWidth/2, cpuPosition.y + barDimensions.barHeight/2 };
+            Vector2 ramBarCenter = { ramPosition.x + barDimensions.barWidth/2, ramPosition.y + barDimensions.barHeight/2 };
+            Vector2 diskBarCenter = { diskPosition.x + barDimensions.barWidth/2, quad4.y + barDimensions.barHeight/2 };
+
+            Vector2 cpuTextCenter = { cpuTextPos.x + textWidth1/2, cpuTextPos.y + fontSize/2 };
+            Vector2 ramTextCenter = { ramTextPos.x + textWidth2/2, ramTextPos.y + fontSize/2 };
+            Vector2 diskTextCenter = { diskTextPos.x + textWidth4/2, diskTextPos.y + fontSize/2 };
+
+            // Draw debug centers
+            DrawCircle(quad1.x, quad1.y, 3, RED);
+            DrawCircle(quad2.x, quad2.y, 3, RED);
+            DrawCircle(cpuBarCenter.x, cpuBarCenter.y, 3, GREEN);
+            DrawCircle(ramBarCenter.x, ramBarCenter.y, 3, GREEN);
+            DrawCircle(diskBarCenter.x, diskBarCenter.y, 3, GREEN);
+            DrawCircle(cpuTextCenter.x, cpuTextCenter.y, 3, BLUE);
+            DrawCircle(ramTextCenter.x, ramTextCenter.y, 3, BLUE);
+            DrawCircle(diskTextCenter.x, diskTextCenter.y, 3, BLUE);
+        }
         EndDrawing();
 
         frameCounter++;
