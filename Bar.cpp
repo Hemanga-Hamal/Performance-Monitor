@@ -1,5 +1,6 @@
 #include "Bar.h"
 
+//configurations
 Bar::Theme::Theme() 
     : barBackgroundColor(DARKGRAY), barForegroundColor(GRAY) {}
 
@@ -12,9 +13,13 @@ Bar::Config::Config()
 Bar::Config::Config(float val, float maxVal) 
     : value(val), maxValue(maxVal) {}
 
+
+//constructor
 Bar::Bar(const Theme& theme, const Dimensions& dimensions, const Config& config) 
     : theme(theme), dims(dimensions), config(config) {}
 
+
+//draw
 void Bar::draw(Vector2 position) const {
     float valuePercentage = config.value / config.maxValue;
 
@@ -22,6 +27,7 @@ void Bar::draw(Vector2 position) const {
     DrawRectangle((int)position.x, (int)position.y, (int)(dims.barWidth * valuePercentage), (int)dims.barHeight, theme.barForegroundColor);
 }
 
+//setters
 void Bar::setTheme(const Theme& newTheme) {
     theme = newTheme;
 }
@@ -34,6 +40,7 @@ void Bar::setConfig(const Config& newConfig) {
     config = newConfig;
 }
 
+//getters
 const Bar::Config& Bar::getConfig() const {
     return config;
 }

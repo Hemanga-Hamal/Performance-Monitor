@@ -32,7 +32,6 @@ int main() {
     Gauge gaugeCPU(gaugeTheme, gaugeDimensions, gaugeConfig);
     Gauge gaugeRAM(gaugeTheme, gaugeDimensions, gaugeConfig);
 
-
     // Bar setup
     const float BASE_BAR_WIDTH = 150;
     const float BASE_BAR_HEIGHT = 20;
