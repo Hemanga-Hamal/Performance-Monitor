@@ -23,8 +23,8 @@ OBJ_GraphicV0 = Graphicv0.o Bar.o Gauge.o
 EXEC_GraphicV0 = Graphicv0.exe
 
 # Project files for Graphicv1
-SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp
-OBJ_GraphicV1 = Graphicv1.o BarV1.o Gauge.o
+SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp GaugeV1.cpp
+OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o
 EXEC_GraphicV1 = Graphicv1.exe
 
 # Default target
