@@ -30,7 +30,6 @@ public:
         float maxValue;
         bool autoScale;
         float screenSizeRatio;
-        float minBarWidth;  // Add minimum bar width
         Config();
         Config(float val, float maxVal);
     };
