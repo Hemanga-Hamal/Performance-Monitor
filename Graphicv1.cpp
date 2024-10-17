@@ -28,6 +28,13 @@ int main() {
     GaugeV1 gaugeArc(GaugeV1::Theme(), GaugeV1::Dimensions(), GaugeV1::Config::ConfigArc());
     GaugeV1 gaugeQuarter(GaugeV1::Theme(), GaugeV1::Dimensions(), GaugeV1::Config::ConfigQuarter());
 
+    GaugeV1::Config Config;
+    Config.startAngle = 10.0f;
+    Config.totalAngle = 10.0f;
+    Config.autoScale = true;
+
+    GaugeV1 gaugeTest(GaugeV1::Theme(), GaugeV1::Dimensions(), Config);
+
     // Gauge value
     float testValue = 0.0f;
 
@@ -58,6 +65,7 @@ int main() {
             // Draw gauges in different quadrants
             gaugeArc.draw(quad1);
             gaugeQuarter.draw(quad2); 
+            gaugeTest.draw(quad3);
 
             // Center debug points for quadrants
             DrawCircle(static_cast<int>(quad1.x), static_cast<int>(quad1.y), 2, RED);

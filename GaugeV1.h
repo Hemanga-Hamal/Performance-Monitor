@@ -55,7 +55,7 @@ public:
         // Static method for a quarter configuration
         static Config ConfigQuarter() {
             Config config;
-            config.startAngle = 135.0f;
+            config.startAngle = 90.0f;
             config.totalAngle = 270.0f;
             config.autoScale = true;
             config.screenSizeRatio = 0.3f;
