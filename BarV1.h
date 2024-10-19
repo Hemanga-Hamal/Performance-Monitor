@@ -41,7 +41,7 @@ public:
     void setTheme(const Theme& newTheme);
     void setDimensions(const Dimensions& newDimensions);
     void setConfig(const Config& newConfig);
-
+    void setValue(float value);
     const Config& getConfig() const;
     float getWidth() const;
     float getHeight() const;

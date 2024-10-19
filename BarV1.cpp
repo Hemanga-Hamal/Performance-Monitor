@@ -80,6 +80,10 @@ void BarV1::setConfig(const Config& newConfig) {
     config = newConfig;
 }
 
+void BarV1::setValue(float value){
+    config.value = value;
+}
+
 // Getters for retrieving configuration and dimensions
 const BarV1::Config& BarV1::getConfig() const {
     return config;
