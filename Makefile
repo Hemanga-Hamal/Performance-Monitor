@@ -27,8 +27,13 @@ SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp GaugeV1.cpp
 OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o
 EXEC_GraphicV1 = Graphicv1.exe
 
+# Project files for Graphicv2
+SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp
+OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o
+EXEC_GraphicV2 = Graphicv2.exe
+
 # Default target
-all: $(EXEC_FN) $(EXEC_GraphicV0) $(EXEC_GraphicV1)
+all: $(EXEC_GraphicV2)
 
 # Link the executable for Functions_test with full static linking
 $(EXEC_FN): $(OBJ_FN)
@@ -41,6 +46,10 @@ $(EXEC_GraphicV0): $(OBJ_GraphicV0)
 # Link the executable for Graphicv1 with full static linking
 $(EXEC_GraphicV1): $(OBJ_GraphicV1)
 	$(CXX) -o $(EXEC_GraphicV1) $(OBJ_GraphicV1) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+
+# Link the executable for Graphicv2 with full static linking
+$(EXEC_GraphicV2): $(OBJ_GraphicV2)
+	$(CXX) -o $(EXEC_GraphicV2) $(OBJ_GraphicV2) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
 # Compile C++ source files to object files
 %.o: %.cpp
