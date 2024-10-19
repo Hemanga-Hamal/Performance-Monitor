@@ -2,6 +2,7 @@
 #define GaugeV1_H
 
 #include "raylib.h"
+#include <string>
 #include <cmath>
 #include <algorithm>
 
@@ -13,6 +14,7 @@ private:
 
     void DrawArc(Vector2 center, float innerRadius, float outerRadius, 
                  float startAngle, float endAngle, Color color) const; // Draw arc
+
 public:
     struct Theme {
         Color backgroundColor;
@@ -39,6 +41,7 @@ public:
         float totalAngle;         // Total sweep angle in degrees
         bool autoScale;
         float screenSizeRatio;
+        int method;
 
         Config();
     
@@ -49,6 +52,7 @@ public:
             config.totalAngle = 240.0f;
             config.autoScale = true;
             config.screenSizeRatio = 0.3f;
+            config.method = 1;
             return config;
         }
 
@@ -59,6 +63,7 @@ public:
             config.totalAngle = 270.0f;
             config.autoScale = true;
             config.screenSizeRatio = 0.3f;
+            config.method = 2;
             return config;
         }
 
@@ -86,7 +91,7 @@ public:
     void setTextColor(Color color);
 
     float calculateGaugeSize() const;
-    void draw(Vector2 center) const;
+    void draw(Vector2 center, const std::string& label) const;
 };
 
 #endif // GaugeV1_H

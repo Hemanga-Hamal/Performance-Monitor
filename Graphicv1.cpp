@@ -32,6 +32,8 @@ int main() {
     Config.startAngle = 10.0f;
     Config.totalAngle = 10.0f;
     Config.autoScale = true;
+    Config.screenSizeRatio = 0.3f;
+    Config.method = 1;
 
     GaugeV1 gaugeTest(GaugeV1::Theme(), GaugeV1::Dimensions(), Config);
 
@@ -63,9 +65,9 @@ int main() {
             DrawLine(screenWidth / 2, 0, screenWidth / 2, screenHeight, WHITE);
 
             // Draw gauges in different quadrants
-            gaugeArc.draw(quad1);
-            gaugeQuarter.draw(quad2); 
-            gaugeTest.draw(quad3);
+            gaugeArc.draw(quad1, "test");
+            gaugeQuarter.draw(quad2,"test" ); 
+            gaugeTest.draw(quad3, "test" );
 
             // Center debug points for quadrants
             DrawCircle(static_cast<int>(quad1.x), static_cast<int>(quad1.y), 2, RED);
