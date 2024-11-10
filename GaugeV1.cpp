@@ -125,7 +125,7 @@ void GaugeV1::draw(Vector2 center, const std::string& label) const {
     
     // Draw percentage value
     const char* valueText = TextFormat("%.0f%%", value);
-    Vector2 valueTextSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 0);
+    Vector2 valueTextSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 1);
     DrawText(valueText, 
              center.x - valueTextSize.x / 2, 
              center.y - valueTextSize.y / 2, 
@@ -134,13 +134,13 @@ void GaugeV1::draw(Vector2 center, const std::string& label) const {
 
     // Draw label based on method
     if (!label.empty()) {
-        Vector2 labelTextSize = MeasureTextEx(GetFontDefault(), label.c_str(), labelFontSize, 0);
+        Vector2 labelTextSize = MeasureTextEx(GetFontDefault(), label.c_str(), labelFontSize, 1);
         
         if (config.method == 1) {
             // Draw label above the value
             DrawText(label.c_str(), 
                     center.x - labelTextSize.x / 2, 
-                    center.y + valueTextSize.y / 2 + + innerRadius/16, 
+                    center.y + valueTextSize.y / 2 + innerRadius/16, 
                     labelFontSize, 
                     theme.textColor);
         }

@@ -18,18 +18,18 @@ OBJ_FN = stats.o Functions_test.o
 EXEC_FN = Functions_test.exe
 
 # Project files for Graphicv0
-SRC_GraphicV0 = Graphicv0.cpp Bar.cpp Gauge.cpp
-OBJ_GraphicV0 = Graphicv0.o Bar.o Gauge.o
+SRC_GraphicV0 = Graphicv0.cpp Bar.cpp Gauge.cpp stats.cpp
+OBJ_GraphicV0 = Graphicv0.o Bar.o Gauge.o stats.o
 EXEC_GraphicV0 = Graphicv0.exe
 
 # Project files for Graphicv1
-SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp GaugeV1.cpp
-OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o
+SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp GaugeV1.cpp stats.cpp
+OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o stats.o
 EXEC_GraphicV1 = Graphicv1.exe
 
 # Project files for Graphicv2
-SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp
-OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o
+SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp stats.cpp
+OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o stats.o
 EXEC_GraphicV2 = Graphicv2.exe
 
 # Default target
