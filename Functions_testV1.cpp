@@ -30,8 +30,8 @@ int main() {
         switch (choice) {
             case 1:  // CPU
                 std::cout << "\n--- Testing CPU ---\n";
-                std::cout << "CPU Frequency: " << systemStats.GetCPUFrequency() << " MHz" << std::endl;
-                std::cout << "CPU Utilization: " << systemStats.GetCPUUtilization() << " %" << std::endl;
+                std::cout << "CPU Frequency: " << systemStats.GETCPUFrequency() << " MHz" << std::endl;
+                std::cout << "CPU Utilization: " << systemStats.GETCPUtilization() << " %" << std::endl;
                 break;
 
             case 2:  // RAM

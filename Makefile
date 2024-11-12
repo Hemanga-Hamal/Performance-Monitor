@@ -7,7 +7,7 @@ CXXFLAGS = -std=c++17 -Wall -O2 -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/extern
 LDFLAGS = -L$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src/external
 
 # Full static linking
-STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -mwindows
+STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -lws2_32 -lpsapi -mwindows
 
 # Raylib linking (assuming static library is available)
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
@@ -37,8 +37,8 @@ SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp Stats.cpp StatsV1.cpp
 OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o Stats.o StatsV1.o
 EXEC_GraphicV2 = Graphicv2.exe
 
-# Default target
-all: $(EXEC_FN1)
+# Default targetffunc
+all: $(EXEC_FN) $(EXEC_FN1) $(EXEC_GraphicV0) $(EXEC_GraphicV1) $(EXEC_GraphicV2)
 
 # Link the executable for Functions_test with full static linking
 $(EXEC_FN): $(OBJ_FN)

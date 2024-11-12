@@ -1,10 +1,38 @@
+// Windows configuration must come first
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#define NOGDI       // Add this to prevent GDI function declarations
+#define NOUSER     // Add this to prevent USER function declarations that might conflict
+
+// Windows includes
+#include <windows.h>
+
+// Undefine Windows macros that might have slipped through
+#undef near
+#undef far
+#undef Rectangle
+#undef DrawText
+#undef CloseWindow
+#undef ShowCursor
+
+// Now include raylib
 #include "raylib.h"
+
+// Additional includes
+#include "StatsV1.h"
 #include "BarV1.h"
 #include "GaugeV1.h"
 #include "Stats.h"
+
 #include <string>
 #include <cmath>
 #include <algorithm>
+
+// Create type aliases for explicit struct usage
+using RaylibRectangle = ::Rectangle; 
+using RaylibVector2 = ::Vector2;
+using RaylibColor = ::Color;
+
 
 int main() {
     // Window initialization
@@ -19,8 +47,8 @@ int main() {
     SetTargetFPS(30);  
 
     // Stats instance
-    stats stats;
-
+    StatsV1 stats1;
+    
     // Gauge instances
     GaugeV1::Theme Gauge_Theme;
     GaugeV1::Dimensions Gauge_Dimesions;
@@ -50,22 +78,18 @@ int main() {
 
     // Timer to track update interval
     float updateTimer = 0.0f;
-    const float updateInterval = 5.0f; // Update every 5 seconds
+    const float updateInterval = 1.0f; 
 
     while (!WindowShouldClose()) {
-        // Update values every 5 seconds
         if (GetTime() - updateTimer >= updateInterval) {
-            // Update stats values only every 5 seconds
-            CPU_Freq = 0.0;
-            CPU_Util = 0.0;
-            RAM_Util = 0.0;
-            Wifi_Send = 0.0;
-            Wifi_Recv = 0.0;
-            Ether_Send = 0.0;
-            Ether_Recv = 0.0;
-            Disk_Util = 0.0;
-
-            // Update the timer
+            CPU_Freq = stats1.GETCPUFrequency();
+            CPU_Util = stats1.GETCPUtilization();
+            RAM_Util = stats1.GETRAMUtilization();
+            Wifi_Send = stats1.GETWiFiSend();
+            Wifi_Recv = stats1.GETWiFiReceive();
+            Ether_Send = stats1.GETEthernetSend();
+            Ether_Recv = stats1.GETEthernetReceive();
+            Disk_Util = stats1.GETDISKUtilization();
             updateTimer = GetTime();
         }
 
@@ -83,7 +107,6 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        // Get screen dimensions only if necessary (e.g., resizing window)
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
         float heightScale = screenHeight / baseHeight;
@@ -121,21 +144,16 @@ int main() {
         const char* Network_text_title = "Network";
         int size_Network_text_title = MeasureText(Network_text_title, fontSize);
         DrawText(Network_text_title, Pos_centreQuad3.x - size_Network_text_title / 2, Pos_centreQuad3.y - verticalOffset - titlefontsize / 2, titlefontsize, WHITE);
-        const char* WifiSendLabel = "WiFi Send";
-        Bar_Wifi_Send.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y - 0.53f * (verticalOffset) }, WifiSendLabel, std::to_string(static_cast<int>(Wifi_Send)));
-        const char* WifiRecvLabel = "WiFi Recv";
-        Bar_Wifi_Recv.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y - 0.12f * (verticalOffset) }, WifiRecvLabel, std::to_string(static_cast<int>(Wifi_Recv)));
-        const char* EtherSendLabel = "Eth Send";
-        Bar_Ether_Send.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y + 0.30f * (verticalOffset) }, EtherSendLabel, std::to_string(static_cast<int>(Ether_Send)));
-        const char* EtherRecvLabel = "Eth Recv";
-        Bar_Ether_Recv.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y + 0.72f * (verticalOffset) }, EtherRecvLabel, std::to_string(static_cast<int>(Ether_Recv)));
+        Bar_Wifi_Send.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y - 0.53f * (verticalOffset) }, "WiFi Send", std::to_string(static_cast<int>(Wifi_Send)));
+        Bar_Wifi_Recv.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y - 0.12f * (verticalOffset) }, "WiFi Recv", std::to_string(static_cast<int>(Wifi_Recv)));
+        Bar_Ether_Send.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y + 0.30f * (verticalOffset) }, "Eth Send", std::to_string(static_cast<int>(Ether_Send)));
+        Bar_Ether_Recv.draw({ Pos_centreQuad3.x, Pos_centreQuad3.y + 0.72f * (verticalOffset) }, "Eth Recv", std::to_string(static_cast<int>(Ether_Recv)));
 
         // Quad 4 - Disk
         const char* Disk_text_title = "Disk";
         int size_Disk_text_title = MeasureText(Disk_text_title, fontSize);
         DrawText(Disk_text_title, Pos_centreQuad4.x - size_Disk_text_title / 2, Pos_centreQuad4.y - verticalOffset - titlefontsize / 2, titlefontsize, WHITE);
-        const char* DiskUtilLabel = "C: Utilization";
-        Bar_Disk_Util.draw({ Pos_centreQuad4.x, Pos_centreQuad4.y }, DiskUtilLabel, std::to_string(static_cast<int>(Disk_Util)));
+        Bar_Disk_Util.draw({ Pos_centreQuad4.x, Pos_centreQuad4.y }, "C: Utilization", std::to_string(static_cast<int>(Disk_Util)));
 
         EndDrawing();
     }

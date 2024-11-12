@@ -1,85 +1,78 @@
+// StatsV1.h
 #ifndef STATSV1_H
 #define STATSV1_H
 
-#include <iostream>
-#include <string>
 #include <windows.h>
-#include <intrin.h>
-#include <conio.h>
 #include <pdh.h>
-#include <pdhmsg.h>
-#include <iomanip> 
-#include <limits>
+#include <memory>
+#include <string_view>
 
 class StatsV1 {
 private:
-    // CPU - Frequency
-    LARGE_INTEGER frequency, start, end;
-    DWORD64 startTime, endTime;
-    float timeDiff;
-    float CPUFrequency;
-    // CPU - Utilization
-    FILETIME idleTime, kernelTime, userTime;
-    FILETIME prevIdleTime, prevKernelTime, prevUserTime;
-    ULONGLONG idleDiff, kernelDiff, userDiff, totalSystem;
-    float CPUUtilization;
-    // RAM - Total
-    MEMORYSTATUSEX memInfo;
-    float RAMTotal;
-    // RAM - Used
-    float RAMUsed;
-    // RAM - Utilization
-    float RAMUtilization;
-    // DISK - Total
-    LPCWSTR drive = L"C:\\";
-    ULARGE_INTEGER freeBytesAvailable, totalBytes, totalFreeBytes;
-    float DISKTotal;
-    //Disk - Used
-    ULONGLONG usedBytes;
-    float DISKUsed;
-    // DISK - Utilization
-    float DISKUtilization;
-    // NETWORK - Wi-Fi and Ethernet Send/Receive Queries
-    PDH_HQUERY hQueryWiFi, hQueryEthernet;
-    PDH_HCOUNTER hCounterWiFiSend, hCounterWiFiReceive;
-    PDH_HCOUNTER hCounterEthernetSend, hCounterEthernetReceive;
-    PDH_FMT_COUNTERVALUE counterValWiFiSend;
-    PDH_FMT_COUNTERVALUE counterValWiFiReceive;
-    PDH_FMT_COUNTERVALUE counterValEthernetSend;
-    PDH_FMT_COUNTERVALUE counterValEthernetReceive;
-    DWORD dwCounterTypeWiFiSend;
-    DWORD dwCounterTypeWiFiReceive;
-    DWORD dwCounterTypeEthernetSend;
-    DWORD dwCounterTypeEthernetReceive;
-    float WiFiSend, WiFiReceive;
-    float EthernetSend, EthernetReceive;
+    // CPU measurements
+    float CPUFrequency{0.0f};
+    float CPUUtilization{0.0f};
+    PDH_HQUERY cpuQuery{nullptr};
+    PDH_HCOUNTER cpuFreqCounter{nullptr};
+    LARGE_INTEGER lastCPUTime{};
+    LARGE_INTEGER lastSysTime{};
 
+    // RAM measurements
+    MEMORYSTATUSEX memInfo{};
+    float RAMTotal{0.0f};
+
+    // Disk measurements
+    static constexpr std::wstring_view DRIVE = L"C:\\";
+    float DISKTotal{0.0f};
+
+    // Network measurements
+    struct NetworkCounters {
+        PDH_HQUERY query{nullptr};
+        PDH_HCOUNTER sendCounter{nullptr};
+        PDH_HCOUNTER receiveCounter{nullptr};
+        float sendRate{0.0f};
+        float receiveRate{0.0f};
+    };
+
+    NetworkCounters wifi;
+    NetworkCounters ethernet;
+
+    // Helper functions
+    static bool InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* interfaceName);
+    static void CleanupNetworkCounter(NetworkCounters& counter) noexcept;
+    static float GetNetworkRate(PDH_HQUERY query, PDH_HCOUNTER counter) noexcept;
 
 public:
-    // Constructor and Destructor
-    StatsV1();
-    ~StatsV1();
+    StatsV1() noexcept;
+    ~StatsV1() noexcept;
 
-    // CPU
-    float GetCPUFrequency();
-    float GetCPUUtilization();
+    // Delete copy operations to prevent resource handling issues
+    StatsV1(const StatsV1&) = delete;
+    StatsV1& operator=(const StatsV1&) = delete;
 
-    // RAM
-    float GETRAMTotal();
-    float GETRAMUsed();
-    float GETRAMUtilization();
+    // Move operations
+    StatsV1(StatsV1&&) noexcept = default;
+    StatsV1& operator=(StatsV1&&) noexcept = default;
 
-    // DISK
-    float GETDISKTotal();
-    float GETDISKUsed();
-    float GETDISKUtilization();
+    // CPU metrics
+    [[nodiscard]] float GETCPUFrequency() noexcept;
+    [[nodiscard]] float GETCPUtilization() noexcept;
 
-    // NETWORK
-    float GETWiFiSend();
-    float GETWiFiReceive();
-    float GETEthernetSend();
-    float GETEthernetReceive();
+    // RAM metrics
+    [[nodiscard]] float GETRAMTotal() const noexcept { return RAMTotal; }
+    [[nodiscard]] float GETRAMUsed() noexcept;
+    [[nodiscard]] float GETRAMUtilization() noexcept;
 
+    // Disk metrics
+    [[nodiscard]] float GETDISKTotal() const noexcept { return DISKTotal; }
+    [[nodiscard]] float GETDISKUsed() noexcept;
+    [[nodiscard]] float GETDISKUtilization() noexcept;
+
+    // Network metrics
+    [[nodiscard]] float GETWiFiSend() noexcept;
+    [[nodiscard]] float GETWiFiReceive() noexcept;
+    [[nodiscard]] float GETEthernetSend() noexcept;
+    [[nodiscard]] float GETEthernetReceive() noexcept;
 };
 
-#endif // STATS_H
+#endif // STATSV1_H
