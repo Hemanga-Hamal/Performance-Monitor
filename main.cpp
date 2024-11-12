@@ -1,6 +1,6 @@
 #include "stats.h"
 #include <iostream>
-#include <limits>  // For INT_MAX
+#include <limits>  
 
 int main() {
     stats systemStats;  // Create an instance of the stats class
