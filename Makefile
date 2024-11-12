@@ -13,31 +13,40 @@ STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -mwindows
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
 
 # Project files for Functions_test
-SRC_FN = stats.cpp Functions_test.cpp
-OBJ_FN = stats.o Functions_test.o
+SRC_FN = StatsV1.cpp Functions_test.cpp Stats.cpp
+OBJ_FN = StatsV1.o Functions_test.o Stats.o
 EXEC_FN = Functions_test.exe
 
+# Project files for Functions_testV1.cpp
+SRC_FN1 = StatsV1.cpp Functions_testV1.cpp
+OBJ_FN1 = StatsV1.o Functions_testV1.o
+EXEC_FN1 = Functions_testV1.exe
+
 # Project files for Graphicv0
-SRC_GraphicV0 = Graphicv0.cpp Bar.cpp Gauge.cpp stats.cpp
-OBJ_GraphicV0 = Graphicv0.o Bar.o Gauge.o stats.o
+SRC_GraphicV0 = Graphicv0.cpp Bar.cpp Gauge.cpp Stats.cpp StatsV1.cpp
+OBJ_GraphicV0 = Graphicv0.o Bar.o Gauge.o Stats.o StatsV1.o
 EXEC_GraphicV0 = Graphicv0.exe
 
 # Project files for Graphicv1
-SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp GaugeV1.cpp stats.cpp
-OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o stats.o
+SRC_GraphicV1 = Graphicv1.cpp BarV1.cpp GaugeV1.cpp Stats.cpp StatsV1.cpp
+OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o Stats.o StatsV1.o
 EXEC_GraphicV1 = Graphicv1.exe
 
 # Project files for Graphicv2
-SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp stats.cpp
-OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o stats.o
+SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp Stats.cpp StatsV1.cpp
+OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o Stats.o StatsV1.o
 EXEC_GraphicV2 = Graphicv2.exe
 
 # Default target
-all: $(EXEC_GraphicV2)
+all: $(EXEC_FN1)
 
 # Link the executable for Functions_test with full static linking
 $(EXEC_FN): $(OBJ_FN)
 	$(CXX) -o $(EXEC_FN) $(OBJ_FN) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+
+# Link the executable for Functions_testV1 with full static linking
+$(EXEC_FN1): $(OBJ_FN1)
+	$(CXX) -o $(EXEC_FN1) $(OBJ_FN1) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
 # Link the executable for Graphicv0 with full static linking
 $(EXEC_GraphicV0): $(OBJ_GraphicV0)

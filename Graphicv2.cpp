@@ -56,14 +56,14 @@ int main() {
         // Update values every 5 seconds
         if (GetTime() - updateTimer >= updateInterval) {
             // Update stats values only every 5 seconds
-            CPU_Freq = stats.GetCPUFrequency();
-            CPU_Util = stats.GetCPUUtilization();
-            RAM_Util = stats.GETRAMUtilization();
-            Wifi_Send = stats.GETWiFiSend();
-            Wifi_Recv = stats.GETWiFiReceive();
-            Ether_Send = stats.GETEthernetSend();
-            Ether_Recv = stats.GETEthernetReceive();
-            Disk_Util = stats.GETDISKUtilization();
+            CPU_Freq = 0.0;
+            CPU_Util = 0.0;
+            RAM_Util = 0.0;
+            Wifi_Send = 0.0;
+            Wifi_Recv = 0.0;
+            Ether_Send = 0.0;
+            Ether_Recv = 0.0;
+            Disk_Util = 0.0;
 
             // Update the timer
             updateTimer = GetTime();
