@@ -1,35 +1,32 @@
-# Compiler
+# Paths
+RAYLIB_PATH = C:/raylib/raylib
+
+# Compiler and flags
 CXX = g++
+CXXFLAGS = -std=c++17 -Wall -O2 -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/external -DPLATFORM_DESKTOP
+LDFLAGS = -L$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src/external
 
-# Compiler Flags
-CXXFLAGS = -Wall -Wextra -std=c++11
+# Full static linking
+STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -lws2_32 -lpsapi -mwindows
 
-# Linker Flags
-LDFLAGS = -lpdh
+# Raylib linking (assuming static library is available)
+LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
 
-# Executable Name
-EXEC = system_stats
+# Project files for Functions_test
+SRC_FN = main.cpp stats.cpp
+OBJ_FN = main.o stats.o
+EXEC_FN = Functions_test.exe
 
-# Source Files
-SRCS = main.cpp stats.cpp
+# Default targetffunc
+all: $(EXEC_FN)
 
-# Object Files
-OBJS = $(SRCS:.cpp=.o)
+# Link the executable for Functions_test with full static linking
+$(EXEC_FN): $(OBJ_FN)
+	$(CXX) -o $(EXEC_FN) $(OBJ_FN) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
-# Default Target
-all: $(EXEC)
-
-# Link the object files to create the executable
-$(EXEC): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJS) $(LDFLAGS)
-
-# Compile source files into object files
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Clean the project directory by removing object files and the executable
+# Clean up build artifacts
 clean:
-	rm -f $(OBJS) $(EXEC)
+	@echo Cleaning up build artifacts...
+	-@del /q *.o *.exe 2> NUL || rm -f *.o *.exe
 
-# Phony targets to avoid conflicts with files named 'clean' or 'all'
 .PHONY: all clean
