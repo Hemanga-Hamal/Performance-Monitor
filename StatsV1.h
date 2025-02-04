@@ -1,11 +1,10 @@
-// StatsV1.h
 #ifndef STATSV1_H
 #define STATSV1_H
 
 #include <windows.h>
 #include <pdh.h>
 #include <memory>
-#include <string_view>
+#include <string>
 
 class StatsV1 {
 private:
@@ -22,7 +21,7 @@ private:
     float RAMTotal{0.0f};
 
     // Disk measurements
-    static constexpr std::wstring_view DRIVE = L"C:\\";
+    static constexpr wchar_t DRIVE[] = L"C:\\";
     float DISKTotal{0.0f};
 
     // Network measurements

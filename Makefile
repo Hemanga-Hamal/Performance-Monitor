@@ -38,7 +38,7 @@ OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o Stats.o StatsV1.o
 EXEC_GraphicV2 = Graphicv2.exe
 
 # Default targetffunc
-all: $(EXEC_FN) $(EXEC_FN1) $(EXEC_GraphicV0) $(EXEC_GraphicV1) $(EXEC_GraphicV2)
+all: $(EXEC_GraphicV2)
 
 # Link the executable for Functions_test with full static linking
 $(EXEC_FN): $(OBJ_FN)

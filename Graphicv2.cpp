@@ -40,7 +40,7 @@ int main() {
     const int baseHeight = 600;
     int screenWidth = baseWidth;
     int screenHeight = baseHeight;
-
+\
     InitWindow(screenWidth, screenHeight, "Performance Monitor - GraphicV2");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetWindowMinSize(300, 300);
