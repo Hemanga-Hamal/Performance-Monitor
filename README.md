@@ -2,7 +2,7 @@
 In-house Performance monitor, using c++
 
 WAYYY LATER {Graphics}
- - RATLIB.h FOR THE GUI using Notepad++
+ - RATLIB.h FOR THE GUI 
 
 STUFF DONE
 CPU -> util and speed
