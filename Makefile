@@ -13,19 +13,16 @@ STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -lws2_32 -lpsapi -
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
 
 # Project files for Functions_test
-SRC_FN = StatsV1.cpp Functions_test.cpp Stats.cpp
-OBJ_FN = StatsV1.o Functions_test.o Stats.o
-EXEC_FN = Functions_test.exe
-
+SRC_CPU_FQ = CPU_FQ.cpp
+OBJ_CPU_FQ = $(SRC_CPU_FQ:.cpp=.o)
+EXEC_CPU_FQ = CPU_FQ.exe
 
 # Default targetffunc
-all: $(EXEC_GraphicV2)
+all: $(EXEC_CPU_FQ)
 
 # Link the executable for Functions_test with full static linking
-$(EXEC_FN): $(OBJ_FN)
-	$(CXX) -o $(EXEC_FN) $(OBJ_FN) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
-
-
+$(EXEC_CPU_FQ): $(OBJ_CPU_FQ)
+	$(CXX) -o $(EXEC_CPU_FQ) $(OBJ_CPU_FQ) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
 # Compile C++ source files to object files
 %.o: %.cpp

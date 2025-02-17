@@ -1,0 +1,28 @@
+Performance Limit Flags
+% Performance Limit
+% Privileged Utility
+% Processor Utility
+% Processor Performance -> shows accuate stuff
+Idle Break Events/sec
+Average Idle Time
+Clock Interrupts/sec
+Processor State Flags
+% of Maximum Frequency
+Processor Frequency
+Parking Status
+% Priority Time
+C3 Transitions/sec
+C2 Transitions/sec
+C1 Transitions/sec
+% C3 Time
+% C2 Time
+% C1 Time
+% Idle Time
+DPC Rate
+DPCs Queued/sec
+% Interrupt Time
+% DPC Time
+Interrupts/sec
+% Privileged Time
+% User Time
+% Processor Time
