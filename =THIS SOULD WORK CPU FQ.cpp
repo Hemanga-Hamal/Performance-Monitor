@@ -7,11 +7,13 @@
 
 int main(){
     PDH_HQUERY HCPUQuery;
-    PDH_HCOUNTER HCPUppCounter;
-    PDH_FMT_COUNTERVALUE CPUppValue ;
+    PDH_HCOUNTER HCPUppCounter, HCPUfqCounter;
+    PDH_FMT_COUNTERVALUE CPUppValue, CPUfqValue;
     DWORD dwCounterType;
     double CPUpp = 0.0;
-   
+    double CPUfq = 0.0;
+    double realCPUfq = 0.0;
+    
     // Open query
     if (PdhOpenQuery(NULL, 0, &HCPUQuery) != ERROR_SUCCESS){
         std::cout << "Failed to open query" << std::endl;
@@ -20,6 +22,11 @@ int main(){
 
         // pp
     if (PdhAddCounterW(HCPUQuery, L"\\Processor(_Total)\\% Processor Performance", 0, &HCPUppCounter) != ERROR_SUCCESS){
+        std::cout << "Failed to add counter" << std::endl;
+        return 1;
+    }
+        // fq
+    if (PdhAddCounterW(HCPUQuery, L"\\Processor(_Total)\\Processor Frequency", 0, &HCPUfqCounter) != ERROR_SUCCESS){
         std::cout << "Failed to add counter" << std::endl;
         return 1;
     }
@@ -41,8 +48,23 @@ int main(){
             return 1;
         }
 
-        std::cout << "CPU Frequency: " << std::fixed << std::setprecision(2) << CPUpp << "MHz" << std::endl;
+        // Get data fq
+        if (PdhGetFormattedCounterValue(HCPUfqCounter, PDH_FMT_DOUBLE, &dwCounterType, &CPUfqValue) != ERROR_SUCCESS){
+            CPUfq = (CPUfqValue.doubleValue);
+            std::cout << "Failed to get formatted counter value" << std::endl;
+            return 1;
+        }
+
+        //real CPU fq
+        realCPUfq = CPUpp*CPUfq;
+
+        std::cout << "CPU Frequency: " << std::fixed << std::setprecision(2) << realCPUfq << "MHz" << std::endl;
         Sleep(1000);
+
+        // Check for Enter key press
+        if (_kbhit() && _getch() == '\r') {
+            break;
+        }
     }
     
     PdhCloseQuery(HCPUQuery);
