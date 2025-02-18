@@ -36,8 +36,9 @@ StatsV1::StatsV1() noexcept {
     }
 
     // Initialize Disk info
+    const std::wstring DRIVE = L"C:\\";
     ULARGE_INTEGER totalBytes;
-    if (GetDiskFreeSpaceExW(DRIVE.data(), nullptr, &totalBytes, nullptr)) {
+    if (GetDiskFreeSpaceExW(DRIVE.c_str(), nullptr, &totalBytes, nullptr)) {
         DISKTotal = static_cast<float>(totalBytes.QuadPart) / BYTES_TO_GB;
     }
 
@@ -169,7 +170,7 @@ float StatsV1::GETRAMUtilization() noexcept {
 
 float StatsV1::GETDISKUsed() noexcept {
     ULARGE_INTEGER freeBytesAvailable, totalBytes, totalFreeBytes;
-    if (GetDiskFreeSpaceExW(DRIVE.data(), &freeBytesAvailable, &totalBytes, &totalFreeBytes)) {
+    if (GetDiskFreeSpaceExW(L"C:\\", &freeBytesAvailable, &totalBytes, &totalFreeBytes)) {
         return static_cast<float>(totalBytes.QuadPart - totalFreeBytes.QuadPart) / BYTES_TO_GB;
     }
     return 0.0f;

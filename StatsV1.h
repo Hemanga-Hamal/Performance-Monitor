@@ -21,7 +21,7 @@ private:
     float RAMTotal{0.0f};
 
     // Disk measurements
-    static constexpr wchar_t DRIVE[] = L"C:\\";
+    const wchar_t* DRIVE = L"C:\\";
     float DISKTotal{0.0f};
 
     // Network measurements
