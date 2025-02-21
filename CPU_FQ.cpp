@@ -1,52 +1,88 @@
-#include <iostream>
 #include <windows.h>
 #include <pdh.h>
-#include <pdhmsg.h>
-#include <conio.h>
-#include <iomanip> 
+#include <iostream>
+#include <thread>
 
-int main(){
-    PDH_HQUERY HCPUQuery;
-    PDH_HCOUNTER HCPUppCounter;
-    PDH_FMT_COUNTERVALUE CPUppValue ;
-    DWORD dwCounterType;
-    double CPUpp = 0.0;
-   
-    // Open query
-    if (PdhOpenQuery(NULL, 0, &HCPUQuery) != ERROR_SUCCESS){
-        std::cout << "Failed to open query" << std::endl;
-        return 1;
+void GetRealTimeCpuFrequency() {
+    PDH_HQUERY query = NULL;
+    PDH_HCOUNTER counterPerf = NULL;
+    PDH_HCOUNTER counterFreq = NULL;
+    PDH_STATUS status;
+
+    // Open a query
+    status = PdhOpenQuery(NULL, 0, &query);
+    if (status != ERROR_SUCCESS) {
+        std::cerr << "Failed to open query: " << status << std::endl;
+        return;
     }
 
-        // pp
-    if (PdhAddCounterW(HCPUQuery, L"\\Processor(_Total)\\% Processor Performance", 0, &HCPUppCounter) != ERROR_SUCCESS){
-        std::cout << "Failed to add counter" << std::endl;
-        return 1;
+    // Add counters
+    status = PdhAddCounterW(query, L"\\Processor Information(_Total)\\% Processor Performance", 0, &counterPerf);
+    if (status != ERROR_SUCCESS) {
+        std::cerr << "Failed to add performance counter: " << status << std::endl;
+        PdhCloseQuery(query);
+        return;
     }
 
-    // Collect data
-    std::cout << "Press Enter to stop..." << std::endl;
+    status = PdhAddCounterW(query, L"\\Processor Information(_Total)\\Processor Frequency", 0, &counterFreq);
+    if (status != ERROR_SUCCESS) {
+        std::cerr << "Failed to add frequency counter: " << status << std::endl;
+        PdhCloseQuery(query);
+        return;
+    }
 
-    while (true){
-        
-        if (PdhCollectQueryData(HCPUQuery) != ERROR_SUCCESS){
-            std::cout << "Failed to collect query data" << std::endl;
-            return 1;
+    try {
+        // Initial collection cycles
+        for (int i = 0; i < 3; i++) {
+            PdhCollectQueryData(query);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
-        // Get data pp
-        if (PdhGetFormattedCounterValue(HCPUppCounter, PDH_FMT_DOUBLE, &dwCounterType, &CPUppValue) != ERROR_SUCCESS){
-            CPUpp = (CPUppValue.doubleValue);
-            std::cout << "Failed to get formatted counter value" << std::endl;
-            return 1;
+        while (true) {
+            status = PdhCollectQueryData(query);
+            if (status != ERROR_SUCCESS) {
+                std::cerr << "Failed to collect data: " << status << std::endl;
+                break;
+            }
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            // Get values
+            PDH_FMT_COUNTERVALUE perfValue, freqValue;
+            
+            status = PdhGetFormattedCounterValue(counterPerf, PDH_FMT_LONG, NULL, &perfValue);
+            if (status != ERROR_SUCCESS) {
+                std::cerr << "Failed to get performance value: " << status << std::endl;
+                continue;
+            }
+            
+            status = PdhGetFormattedCounterValue(counterFreq, PDH_FMT_LONG, NULL, &freqValue);
+            if (status != ERROR_SUCCESS) {
+                std::cerr << "Failed to get frequency value: " << status << std::endl;
+                continue;
+            }
+
+            // Calculate real-time frequency
+            double realTimeFrequency = (perfValue.longValue / 100.0) * freqValue.longValue;
+            
+            std::cout << "Estimated Real-Time CPU Frequency: " << realTimeFrequency << " MHz" << std::endl;
         }
-
-        std::cout << "CPU Frequency: " << std::fixed << std::setprecision(2) << CPUpp << "MHz" << std::endl;
-        Sleep(1000);
     }
-    
-    PdhCloseQuery(HCPUQuery);
+    catch (...) {
+        std::cerr << "An exception occurred" << std::endl;
+    }
 
+    // Cleanup
+    PdhCloseQuery(query);
+}
+
+int main() {
+    try {
+        GetRealTimeCpuFrequency();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+        return 1;
+    }
     return 0;
-
 }

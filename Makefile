@@ -7,10 +7,10 @@ CXXFLAGS = -std=c++17 -Wall -O2 -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/extern
 LDFLAGS = -L$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src/external
 
 # Full static linking
-STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -lws2_32 -lpsapi -mwindows
+STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lws2_32 -lpsapi -mwindows
 
 # Raylib linking (assuming static library is available)
-LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
+LDLIBS = -lraylib -lopengl32 -lgdi32 -lpdh -lwinmm $(STATIC_FLAGS)
 
 # Project files for Functions_test
 SRC_CPU_FQ = CPU_FQ.cpp
@@ -22,7 +22,7 @@ all: $(EXEC_CPU_FQ)
 
 # Link the executable for Functions_test with full static linking
 $(EXEC_CPU_FQ): $(OBJ_CPU_FQ)
-	$(CXX) -o $(EXEC_CPU_FQ) $(OBJ_CPU_FQ) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) -o $(EXEC_CPU_FQ) $(OBJ_CPU_FQ) $(LDFLAGS) $(LDLIBS)
 
 # Compile C++ source files to object files
 %.o: %.cpp
