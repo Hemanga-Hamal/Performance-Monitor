@@ -13,9 +13,9 @@ STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lws2_32 -lpsapi -mwindo
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lpdh -lwinmm $(STATIC_FLAGS)
 
 # Project files for Functions_test
-SRC_CPU_FQ = CPU_FQ.cpp
+SRC_CPU_FQ = CPU_FQ-v1.cpp
 OBJ_CPU_FQ = $(SRC_CPU_FQ:.cpp=.o)
-EXEC_CPU_FQ = CPU_FQ.exe
+EXEC_CPU_FQ = CPU_FQ-v1.exe
 
 # Default targetffunc
 all: $(EXEC_CPU_FQ)
