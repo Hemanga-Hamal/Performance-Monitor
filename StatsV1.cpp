@@ -17,7 +17,14 @@ StatsV1::StatsV1() noexcept {
     // Initialize CPU frequency query
     if (PdhOpenQuery(nullptr, 0, &cpuQuery) == ERROR_SUCCESS) {
         // Use the correct counter path for CPU frequency
-        if (PdhAddCounterW(cpuQuery, L"\\Processor Information(_Total)\\Processor Frequency", 0, &cpuFreqCounter) != ERROR_SUCCESS) {
+        if (PdhAddCounterW(cpuQuery, L"\\Processor Information(_Total)\\Processor Frequency", 0, &counterFreq) != ERROR_SUCCESS) {
+            if (cpuQuery) {
+                PdhCloseQuery(cpuQuery);
+                cpuQuery = nullptr;
+            }
+        }
+
+        if (PdhAddCounterW(cpuQuery, L"\\Processor Information(_Total)\\% Processor Performance", 0, &counterPerf) != ERROR_SUCCESS) {
             if (cpuQuery) {
                 PdhCloseQuery(cpuQuery);
                 cpuQuery = nullptr;
@@ -53,7 +60,8 @@ StatsV1::StatsV1() noexcept {
 
 StatsV1::~StatsV1() noexcept {
     if (cpuQuery) {
-        if (cpuFreqCounter) PdhRemoveCounter(cpuFreqCounter);
+        if (counterPerf) PdhRemoveCounter(counterPerf);
+        if (counterFreq) PdhRemoveCounter(counterFreq);
         PdhCloseQuery(cpuQuery);
     }
 
@@ -105,27 +113,28 @@ float StatsV1::GetNetworkRate(PDH_HQUERY query, PDH_HCOUNTER counter) noexcept {
 }
 
 float StatsV1::GETCPUFrequency() noexcept {
-    if (!cpuQuery || !cpuFreqCounter) return CPUFrequency; // Return last known frequency
+    if (!cpuQuery || !counterFreq) return CPUFrequency;
+    if (!cpuQuery || !counterPerf) return CPUFPerf;
 
-    // Collect initial data
-    if (PdhCollectQueryData(cpuQuery) != ERROR_SUCCESS) {
-        return CPUFrequency; // Return last known frequency
+    for (int i = 0; i < 3; i++) {
+        PdhCollectQueryData(cpuQuery);
+        Sleep(MEASUREMENT_DELAY);
     }
 
-    // Wait briefly to get meaningful data
+    if (PdhCollectQueryData(cpuQuery) != ERROR_SUCCESS) {
+        return CPUFrequency;
+    }
     Sleep(MEASUREMENT_DELAY);
-
-    // Collect data again
-    if (PdhCollectQueryData(cpuQuery) != ERROR_SUCCESS) {
-        return CPUFrequency; // Return last known frequency
+    PDH_FMT_COUNTERVALUE perfValue, freqValue;
+    if (PdhGetFormattedCounterValue(counterPerf, PDH_FMT_LONG, NULL, &perfValue) != ERROR_SUCCESS) {
+        return CPUFrequency;
+    }
+    if (PdhGetFormattedCounterValue(counterFreq, PDH_FMT_LONG, NULL, &freqValue) != ERROR_SUCCESS) {
+        return CPUFrequency;
     }
 
-    PDH_FMT_COUNTERVALUE counterValue;
-    if (PdhGetFormattedCounterValue(cpuFreqCounter, PDH_FMT_DOUBLE, nullptr, &counterValue) == ERROR_SUCCESS) {
-        // Update and return the new frequency
-        CPUFrequency = static_cast<float>(counterValue.doubleValue);
-    }
-
+    CPUFrequency = (perfValue.longValue / 100.0) * freqValue.longValue;
+        
     return CPUFrequency;
 }
 

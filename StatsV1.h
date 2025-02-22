@@ -9,20 +9,18 @@
 class StatsV1 {
 private:
     // CPU measurements
-    float CPUFrequency{0.0f};
     float CPUUtilization{0.0f};
+    float CPUFrequency{0.0f};
+    float CPUFPerf{0.0f};
     PDH_HQUERY cpuQuery{nullptr};
-    PDH_HCOUNTER cpuFreqCounter{nullptr};
-    LARGE_INTEGER lastCPUTime{};
-    LARGE_INTEGER lastSysTime{};
+    PDH_HCOUNTER counterPerf{nullptr};
+    PDH_HCOUNTER counterFreq{nullptr};
     
-
     // RAM measurements
     MEMORYSTATUSEX memInfo{};
     float RAMTotal{0.0f};
 
     // Disk measurements
-    const wchar_t* DRIVE = L"C:\\";
     float DISKTotal{0.0f};
 
     // Network measurements
@@ -36,6 +34,10 @@ private:
 
     NetworkCounters wifi;
     NetworkCounters ethernet;
+
+     //timing
+     LARGE_INTEGER lastCPUTime{};
+     LARGE_INTEGER lastSysTime{};
 
     // Helper functions
     static bool InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* interfaceName);
