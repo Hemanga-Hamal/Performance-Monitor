@@ -22,7 +22,7 @@
 #include "StatsV1.h"
 #include "BarV1.h"
 #include "GaugeV1.h"
-#include "Stats.h"
+
 
 #include <string>
 #include <cmath>
@@ -40,7 +40,6 @@ int main() {
     const int baseHeight = 600;
     int screenWidth = baseWidth;
     int screenHeight = baseHeight;
-\
     InitWindow(screenWidth, screenHeight, "Performance Monitor - GraphicV2");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetWindowMinSize(300, 300);

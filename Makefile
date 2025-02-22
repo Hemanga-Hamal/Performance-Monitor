@@ -33,8 +33,8 @@ OBJ_GraphicV1 = Graphicv1.o BarV1.o GaugeV1.o Stats.o StatsV1.o
 EXEC_GraphicV1 = Graphicv1.exe
 
 # Project files for Graphicv2
-SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp Stats.cpp StatsV1.cpp
-OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o Stats.o StatsV1.o
+SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp StatsV1.cpp
+OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o StatsV1.o
 EXEC_GraphicV2 = Graphicv2.exe
 
 # Default targetffunc

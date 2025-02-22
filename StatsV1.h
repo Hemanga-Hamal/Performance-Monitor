@@ -15,6 +15,7 @@ private:
     PDH_HCOUNTER cpuFreqCounter{nullptr};
     LARGE_INTEGER lastCPUTime{};
     LARGE_INTEGER lastSysTime{};
+    
 
     // RAM measurements
     MEMORYSTATUSEX memInfo{};
