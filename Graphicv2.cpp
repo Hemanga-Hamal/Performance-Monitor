@@ -23,7 +23,6 @@
 #include "BarV1.h"
 #include "GaugeV1.h"
 
-
 #include <string>
 #include <cmath>
 #include <algorithm>

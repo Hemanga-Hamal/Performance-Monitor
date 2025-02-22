@@ -10,7 +10,7 @@
 namespace {
     constexpr float BYTES_TO_GB = 1024.0f * 1024.0f * 1024.0f;
     constexpr float BYTES_TO_KBPS = 8.0f / 1000.0f;
-    constexpr DWORD MEASUREMENT_DELAY = 500;
+    constexpr DWORD MEASUREMENT_DELAY = 200;
 }
 
 StatsV1::StatsV1() noexcept {
@@ -118,13 +118,13 @@ float StatsV1::GETCPUFrequency() noexcept {
 
     for (int i = 0; i < 3; i++) {
         PdhCollectQueryData(cpuQuery);
-        Sleep(MEASUREMENT_DELAY);
+        Sleep(100);
     }
 
     if (PdhCollectQueryData(cpuQuery) != ERROR_SUCCESS) {
         return CPUFrequency;
     }
-    Sleep(MEASUREMENT_DELAY);
+    Sleep(100);
     PDH_FMT_COUNTERVALUE perfValue, freqValue;
     if (PdhGetFormattedCounterValue(counterPerf, PDH_FMT_LONG, NULL, &perfValue) != ERROR_SUCCESS) {
         return CPUFrequency;
