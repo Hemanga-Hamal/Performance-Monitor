@@ -1,17 +1,17 @@
-#include "Gauge.h"
+#include "GaugeV1.h"
 
 // Helper function for clamping values
-float Gauge::clamp(float value, float min, float max) {
+float GaugeV1::clamp(float value, float min, float max) {
     return std::min(std::max(value, min), max);
 }
 
 // Convert degrees to radians
-float Gauge::DegToRad(float degrees) const {
+float GaugeV1::DegToRad(float degrees) const {
     return degrees * PI / 180.0f;
 }
 
 // Draw an arc using triangles
-void Gauge::DrawArc(Vector2 center, float innerRadius, float outerRadius, 
+void GaugeV1::DrawArc(Vector2 center, float innerRadius, float outerRadius, 
                     float startAngle, float endAngle, Color color) const {
     int segments = 300;
     float angleStep = (endAngle - startAngle) / segments;
@@ -43,14 +43,14 @@ void Gauge::DrawArc(Vector2 center, float innerRadius, float outerRadius,
 }
 
 // Default constructor for Theme struct
-Gauge::Theme::Theme() :
+GaugeV1::Theme::Theme() :
     backgroundColor({20, 20, 20, 255}),
     arcBackgroundColor({40, 40, 40, 255}),
     arcActiveColor({150, 150, 150, 255}),
     textColor(WHITE) {}
 
 // Default constructor for Dimensions struct
-Gauge::Dimensions::Dimensions() :
+GaugeV1::Dimensions::Dimensions() :
     baseSize(200.0f),
     scaleRatio(1.0f),
     arcThickness(0.2f),
@@ -58,41 +58,42 @@ Gauge::Dimensions::Dimensions() :
     minSize(50.0f),
     maxSize(1000.0f) {}
 
-// Default constructor for Config struct
-Gauge::Config::Config() :
+//default constructor for Config struct
+GaugeV1::Config::Config() :
     startAngle(150.0f),
     totalAngle(240.0f),
     autoScale(true),
-    screenSizeRatio(0.3f) {}
+    screenSizeRatio(0.3f),
+    method(1) {}
 
 // Gauge class constructor
-Gauge::Gauge(const Theme& theme, 
+GaugeV1::GaugeV1(const Theme& theme, 
              const Dimensions& dimensions, 
              const Config& config) 
     : theme(theme), dims(dimensions), config(config), value(0.0f) {}
 
 // Set gauge value
-void Gauge::setValue(float newValue) {
+void GaugeV1::setValue(float newValue) {
     value = clamp(newValue, 0.0f, 100.0f);
 }
 
-// Set the scaling factor
-void Gauge::setScale(float scale) {
-    dims.scaleRatio = std::max(0.1f, scale);
+// Set gauge scale
+void GaugeV1::setScale(float scale) {
+    dims.scaleRatio = scale;
 }
 
-// Set the base size of the gauge
-void Gauge::setBaseSize(float size) {
-    dims.baseSize = clamp(size, dims.minSize, dims.maxSize);
+// Set gauge base size
+void GaugeV1::setBaseSize(float size) {
+    dims.baseSize = size;
 }
 
-// Set the thickness of the arc
-void Gauge::setArcThickness(float thickness) {
-    dims.arcThickness = clamp(thickness, 0.05f, 0.5f);
+// Set gauge arc thickness
+void GaugeV1::setArcThickness(float thickness) {
+    dims.arcThickness = thickness;
 }
 
-// Calculate the size of the gauge
-float Gauge::calculateGaugeSize() const {
+// calculate gauge size
+float GaugeV1::calculateGaugeSize() const {
     if (config.autoScale) {
         float screenSize = fmin(GetScreenWidth(), GetScreenHeight());
         return screenSize * config.screenSizeRatio * dims.scaleRatio;
@@ -100,8 +101,8 @@ float Gauge::calculateGaugeSize() const {
     return dims.baseSize * dims.scaleRatio;
 }
 
-// Draw the gauge on the screen
-void Gauge::draw(Vector2 center) const {
+// Draw gauge
+void GaugeV1::draw(Vector2 center, const std::string& label) const {
     float gaugeSize = calculateGaugeSize();
     gaugeSize = clamp(gaugeSize, dims.minSize, dims.maxSize);
 
@@ -120,11 +121,36 @@ void Gauge::draw(Vector2 center) const {
 
     // Draw value in the center of the gauge
     float valueFontSize = gaugeSize * dims.textSizeRatio * dims.scaleRatio;
+    float labelFontSize = valueFontSize * 0.50; // Make label slightly smaller than value
+    
+    // Draw percentage value
     const char* valueText = TextFormat("%.0f%%", value);
-    Vector2 textSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 0);
+    Vector2 valueTextSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 1);
     DrawText(valueText, 
-             center.x - textSize.x / 2, 
-             center.y - valueFontSize / 2, 
+             center.x - valueTextSize.x / 2, 
+             center.y - valueTextSize.y / 2, 
              valueFontSize, 
              theme.textColor);
+
+    // Draw label based on method
+    if (!label.empty()) {
+        Vector2 labelTextSize = MeasureTextEx(GetFontDefault(), label.c_str(), labelFontSize, 1);
+        
+        if (config.method == 1) {
+            // Draw label above the value
+            DrawText(label.c_str(), 
+                    center.x - labelTextSize.x / 2, 
+                    center.y + valueTextSize.y / 2 + innerRadius/16, 
+                    labelFontSize, 
+                    theme.textColor);
+        }
+        else if (config.method == 2) {
+            // Draw label below the value
+            DrawText(label.c_str(), 
+                    center.x + innerRadius/16, 
+                    center.y + (outerRadius - innerRadius)/2 + innerRadius - labelTextSize.y / 2.1, 
+                    labelFontSize, 
+                    theme.textColor);
+        }
+    }
 }

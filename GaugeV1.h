@@ -1,11 +1,12 @@
-#ifndef GAUGE_H
-#define GAUGE_H
+#ifndef GaugeV1_H
+#define GaugeV1_H
 
 #include "raylib.h"
+#include <string>
 #include <cmath>
 #include <algorithm>
 
-class Gauge {
+class GaugeV1 {
 private:
     static float clamp(float value, float min, float max); // Helper function
 
@@ -40,8 +41,32 @@ public:
         float totalAngle;         // Total sweep angle in degrees
         bool autoScale;
         float screenSizeRatio;
+        int method;
 
         Config();
+    
+        // Static method for an arc configuration
+        static Config ConfigArc() {
+            Config config;
+            config.startAngle = 150.0f;
+            config.totalAngle = 240.0f;
+            config.autoScale = true;
+            config.screenSizeRatio = 0.3f;
+            config.method = 1;
+            return config;
+        }
+
+        // Static method for a quarter configuration
+        static Config ConfigQuarter() {
+            Config config;
+            config.startAngle = 90.0f;
+            config.totalAngle = 270.0f;
+            config.autoScale = true;
+            config.screenSizeRatio = 0.3f;
+            config.method = 2;
+            return config;
+        }
+
     };
 
 private:
@@ -51,17 +76,22 @@ private:
     float value;
 
 public:
-    Gauge(const Theme& theme = Theme(), 
-          const Dimensions& dimensions = Dimensions(),
-          const Config& config = Config());
+    GaugeV1(const Theme& theme = Theme(), 
+           const Dimensions& dimensions = Dimensions(),
+           const Config& config = Config());
 
     void setValue(float newValue);
     void setScale(float scale);
     void setBaseSize(float size);
     void setArcThickness(float thickness);
+    void setTotalAngle(float angle);
+    void setStartAngle(float angle);
+    void setAutoScale(bool autoScale);
+    void setScreenSizeRatio(float ratio);
+    void setTextColor(Color color);
 
     float calculateGaugeSize() const;
-    void draw(Vector2 center) const;
+    void draw(Vector2 center, const std::string& label) const;
 };
 
-#endif
+#endif // GaugeV1_H
