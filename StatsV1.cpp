@@ -9,7 +9,7 @@
 
 namespace {
     constexpr float BYTES_TO_GB = 1024.0f * 1024.0f * 1024.0f;
-    constexpr float BYTES_TO_KBPS = 8.0f / 1000.0f;
+    constexpr float BYTES_TO_MBPS = 8.0f / 1e6;
     constexpr DWORD MEASUREMENT_DELAY = 200;
 }
 
@@ -109,7 +109,7 @@ float StatsV1::GetNetworkRate(PDH_HQUERY query, PDH_HCOUNTER counter) noexcept {
         return 0.0f;
     }
 
-    return static_cast<float>(counterVal.doubleValue * BYTES_TO_KBPS);
+    return static_cast<float>(counterVal.doubleValue * BYTES_TO_MBPS);
 }
 
 float StatsV1::GETCPUFrequency() noexcept {
@@ -141,23 +141,32 @@ float StatsV1::GETCPUFrequency() noexcept {
 
 float StatsV1::GETCPUtilization() noexcept {
     FILETIME idleTime, kernelTime, userTime;
-    GetSystemTimes(&idleTime, &kernelTime, &userTime);
-
-    Sleep(MEASUREMENT_DELAY);
-
     FILETIME newIdleTime, newKernelTime, newUserTime;
-    GetSystemTimes(&newIdleTime, &newKernelTime, &newUserTime);
 
-    ULONGLONG idle = (((ULONGLONG)newIdleTime.dwHighDateTime << 32) | newIdleTime.dwLowDateTime) -
-                     (((ULONGLONG)idleTime.dwHighDateTime << 32) | idleTime.dwLowDateTime);
+    // Get initial CPU times
+    if (!GetSystemTimes(&idleTime, &kernelTime, &userTime)) {
+        return 0.0f; // If retrieval fails, return 0 utilization
+    }
 
-    ULONGLONG kernel = (((ULONGLONG)newKernelTime.dwHighDateTime << 32) | newKernelTime.dwLowDateTime) -
-                      (((ULONGLONG)kernelTime.dwHighDateTime << 32) | kernelTime.dwLowDateTime);
+    Sleep(MEASUREMENT_DELAY); // Wait for measurement interval
 
-    ULONGLONG user = (((ULONGLONG)newUserTime.dwHighDateTime << 32) | newUserTime.dwLowDateTime) -
-                     (((ULONGLONG)userTime.dwHighDateTime << 32) | userTime.dwLowDateTime);
+    // Get CPU times after delay
+    if (!GetSystemTimes(&newIdleTime, &newKernelTime, &newUserTime)) {
+        return 0.0f; // Return 0 on failure
+    }
 
+    // Convert FILETIME to ULONGLONG
+    auto fileTimeToUint64 = [](const FILETIME& ft) -> ULONGLONG {
+        return (static_cast<ULONGLONG>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
+    };
+
+    ULONGLONG idle = fileTimeToUint64(newIdleTime) - fileTimeToUint64(idleTime);
+    ULONGLONG kernel = fileTimeToUint64(newKernelTime) - fileTimeToUint64(kernelTime);
+    ULONGLONG user = fileTimeToUint64(newUserTime) - fileTimeToUint64(userTime);
+    
     ULONGLONG total = kernel + user;
+    CPUUtilization = 0.0f;
+
     if (total > 0) {
         CPUUtilization = static_cast<float>(total - idle) * 100.0f / total;
     }

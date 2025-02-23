@@ -134,7 +134,7 @@ void renderLoop() {
         Gauge_RAM_Util.draw(centerPositions[1], "Load");
 
         // Quad 3 - Network
-        DrawText("Network", centerPositions[2].x - MeasureText("Network", titleFontSize) / 2,
+        DrawText("Network", centerPositions[2].x - MeasureText("Network (MBS)", titleFontSize) / 2,
                  centerPositions[2].y - verticalOffset - titleFontSize / 2, titleFontSize, WHITE);
         Bar_Wifi_Send.draw({ centerPositions[2].x, centerPositions[2].y - 0.53f * verticalOffset }, 
                            "WiFi Send", formatValue(localStats.Wifi_Send));
