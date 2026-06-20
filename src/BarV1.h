@@ -4,7 +4,6 @@
 #include "raylib.h"
 #include <string>
 #include <algorithm>
-#include <cmath>
 
 class BarV1 {
 public:

@@ -1,9 +1,10 @@
 # Paths
 RAYLIB_PATH = C:/raylib/raylib
+SRCDIR = src
 
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -O2 -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/external -DPLATFORM_DESKTOP
+CXXFLAGS = -std=c++17 -Wall -O2 -I$(SRCDIR) -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/external -DPLATFORM_DESKTOP
 LDFLAGS = -L$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src/external
 
 # Full static linking
@@ -12,29 +13,29 @@ STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -lpdh -lws2_32 -lpsapi -
 # Raylib linking (assuming static library is available)
 LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm $(STATIC_FLAGS)
 
-# Project files for Graphicv2
-SRC_GraphicV2 = Graphicv2.cpp BarV1.cpp GaugeV1.cpp StatsV1.cpp
-OBJ_GraphicV2 = Graphicv2.o BarV1.o GaugeV1.o StatsV1.o
-EXEC_GraphicV2 = Graphicv2.exe
+# Source files
+SRCS = $(SRCDIR)/main.cpp $(SRCDIR)/BarV1.cpp $(SRCDIR)/GaugeV1.cpp $(SRCDIR)/StatsV1.cpp
+OBJS = main.o BarV1.o GaugeV1.o StatsV1.o
+EXEC = perfmon.exe
 
-# Project files for Graphicv2T
-SRC_GraphicV2T = Graphicv2T.cpp BarV1.cpp GaugeV1.cpp StatsV1.cpp
-OBJ_GraphicV2T = Graphicv2T.o BarV1.o GaugeV1.o StatsV1.o
-EXEC_GraphicV2T = Graphicv2T.exe
+# Default target
+all: $(EXEC)
 
-# Default targetffunc
-all: $(EXEC_GraphicV2) $(EXEC_GraphicV2T)
+# Link the executable
+$(EXEC): $(OBJS)
+	$(CXX) -o $(EXEC) $(OBJS) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
 
-# Link the executable for Graphicv2 with full static linking
-$(EXEC_GraphicV2): $(OBJ_GraphicV2)
-	$(CXX) -o $(EXEC_GraphicV2) $(OBJ_GraphicV2) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+# Compile source files from src/
+main.o: $(SRCDIR)/main.cpp
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
 
-# Link the executable for Graphicv2T with full static linking
-$(EXEC_GraphicV2T): $(OBJ_GraphicV2T)
-	$(CXX) -o $(EXEC_GraphicV2T) $(OBJ_GraphicV2T) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
+BarV1.o: $(SRCDIR)/BarV1.cpp
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
 
-# Compile C++ source files to object files
-%.o: %.cpp
+GaugeV1.o: $(SRCDIR)/GaugeV1.cpp
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
+
+StatsV1.o: $(SRCDIR)/StatsV1.cpp
 	$(CXX) -c $< -o $@ $(CXXFLAGS)
 
 # Clean up build artifacts

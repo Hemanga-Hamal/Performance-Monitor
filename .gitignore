@@ -2,3 +2,15 @@ c_cpp_properties.json
 launch.json
 .vscode/settings.json
 tasks.json
+build/
+*.exe
+*.obj
+*.o
+*.pdb
+*.ilk
+*.log
+.vs/
+.idea/
+*.user
+*.suo
+.opencode/

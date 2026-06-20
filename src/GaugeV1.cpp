@@ -1,4 +1,5 @@
 #include "GaugeV1.h"
+#include <algorithm>
 
 // Helper function for clamping values
 float GaugeV1::clamp(float value, float min, float max) {
@@ -90,6 +91,31 @@ void GaugeV1::setBaseSize(float size) {
 // Set gauge arc thickness
 void GaugeV1::setArcThickness(float thickness) {
     dims.arcThickness = thickness;
+}
+
+// Set gauge total angle
+void GaugeV1::setTotalAngle(float angle) noexcept {
+    config.totalAngle = angle;
+}
+
+// Set gauge start angle
+void GaugeV1::setStartAngle(float angle) noexcept {
+    config.startAngle = angle;
+}
+
+// Set gauge auto scale
+void GaugeV1::setAutoScale(bool autoScale) noexcept {
+    config.autoScale = autoScale;
+}
+
+// Set gauge screen size ratio
+void GaugeV1::setScreenSizeRatio(float ratio) noexcept {
+    config.screenSizeRatio = ratio;
+}
+
+// Set gauge text color
+void GaugeV1::setTextColor(Color color) noexcept {
+    theme.textColor = color;
 }
 
 // calculate gauge size

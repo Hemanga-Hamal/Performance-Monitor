@@ -4,13 +4,13 @@
 #include "raylib.h"
 #include <string>
 #include <cmath>
-#include <algorithm>
 
 class GaugeV1 {
-private:
-    static float clamp(float value, float min, float max); // Helper function
+public:
+    static float clamp(float value, float min, float max);
 
-    float DegToRad(float degrees) const; // Convert degrees to radians
+private:
+    float DegToRad(float degrees) const;
 
     void DrawArc(Vector2 center, float innerRadius, float outerRadius, 
                  float startAngle, float endAngle, Color color) const; // Draw arc
@@ -84,11 +84,11 @@ public:
     void setScale(float scale);
     void setBaseSize(float size);
     void setArcThickness(float thickness);
-    void setTotalAngle(float angle);
-    void setStartAngle(float angle);
-    void setAutoScale(bool autoScale);
-    void setScreenSizeRatio(float ratio);
-    void setTextColor(Color color);
+    void setTotalAngle(float angle) noexcept;
+    void setStartAngle(float angle) noexcept;
+    void setAutoScale(bool autoScale) noexcept;
+    void setScreenSizeRatio(float ratio) noexcept;
+    void setTextColor(Color color) noexcept;
 
     float calculateGaugeSize() const;
     void draw(Vector2 center, const std::string& label) const;
