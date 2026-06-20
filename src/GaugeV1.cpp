@@ -1,56 +1,45 @@
 #include "GaugeV1.h"
 #include <algorithm>
 
-// Helper function for clamping values
 float GaugeV1::clamp(float value, float min, float max) {
     return std::min(std::max(value, min), max);
 }
 
-// Convert degrees to radians
 float GaugeV1::DegToRad(float degrees) const {
     return degrees * PI / 180.0f;
 }
 
-// Draw an arc using triangles
 void GaugeV1::DrawArc(Vector2 center, float innerRadius, float outerRadius, 
                     float startAngle, float endAngle, Color color) const {
     int segments = 300;
-    float angleStep = (endAngle - startAngle) / segments;
+    float span = endAngle - startAngle;
+    if (span <= 0.0f) return;
+    float angleStep = span / segments;
 
     for (int i = 0; i < segments; i++) {
-        float angle1 = startAngle + i * angleStep;
-        float angle2 = angle1 + angleStep;
+        float a1 = startAngle + i * angleStep;
+        float a2 = a1 + angleStep;
 
-        Vector2 point1Inner = {
-            center.x + innerRadius * cosf(DegToRad(angle1)),
-            center.y + innerRadius * sinf(DegToRad(angle1))
-        };
-        Vector2 point2Inner = {
-            center.x + innerRadius * cosf(DegToRad(angle2)),
-            center.y + innerRadius * sinf(DegToRad(angle2))
-        };
-        Vector2 point1Outer = {
-            center.x + outerRadius * cosf(DegToRad(angle1)),
-            center.y + outerRadius * sinf(DegToRad(angle1))
-        };
-        Vector2 point2Outer = {
-            center.x + outerRadius * cosf(DegToRad(angle2)),
-            center.y + outerRadius * sinf(DegToRad(angle2))
-        };
+        Vector2 p1i = {center.x + innerRadius * cosf(DegToRad(a1)),
+                       center.y + innerRadius * sinf(DegToRad(a1))};
+        Vector2 p2i = {center.x + innerRadius * cosf(DegToRad(a2)),
+                       center.y + innerRadius * sinf(DegToRad(a2))};
+        Vector2 p1o = {center.x + outerRadius * cosf(DegToRad(a1)),
+                       center.y + outerRadius * sinf(DegToRad(a1))};
+        Vector2 p2o = {center.x + outerRadius * cosf(DegToRad(a2)),
+                       center.y + outerRadius * sinf(DegToRad(a2))};
 
-        DrawTriangle(point1Inner, point2Inner, point1Outer, color);
-        DrawTriangle(point2Inner, point2Outer, point1Outer, color);
+        DrawTriangle(p1i, p2i, p1o, color);
+        DrawTriangle(p2i, p2o, p1o, color);
     }
 }
 
-// Default constructor for Theme struct
 GaugeV1::Theme::Theme() :
     backgroundColor({20, 20, 20, 255}),
     arcBackgroundColor({40, 40, 40, 255}),
     arcActiveColor({150, 150, 150, 255}),
     textColor(WHITE) {}
 
-// Default constructor for Dimensions struct
 GaugeV1::Dimensions::Dimensions() :
     baseSize(200.0f),
     scaleRatio(1.0f),
@@ -59,7 +48,6 @@ GaugeV1::Dimensions::Dimensions() :
     minSize(50.0f),
     maxSize(1000.0f) {}
 
-//default constructor for Config struct
 GaugeV1::Config::Config() :
     startAngle(150.0f),
     totalAngle(240.0f),
@@ -67,58 +55,21 @@ GaugeV1::Config::Config() :
     screenSizeRatio(0.3f),
     method(1) {}
 
-// Gauge class constructor
 GaugeV1::GaugeV1(const Theme& theme, 
              const Dimensions& dimensions, 
              const Config& config) 
     : theme(theme), dims(dimensions), config(config), value(0.0f) {}
 
-// Set gauge value
-void GaugeV1::setValue(float newValue) {
-    value = clamp(newValue, 0.0f, 100.0f);
-}
+void GaugeV1::setValue(float newValue) { value = clamp(newValue, 0.0f, 100.0f); }
+void GaugeV1::setScale(float scale) { dims.scaleRatio = scale; }
+void GaugeV1::setBaseSize(float size) { dims.baseSize = size; }
+void GaugeV1::setArcThickness(float thickness) { dims.arcThickness = thickness; }
+void GaugeV1::setTotalAngle(float angle) noexcept { config.totalAngle = angle; }
+void GaugeV1::setStartAngle(float angle) noexcept { config.startAngle = angle; }
+void GaugeV1::setAutoScale(bool autoScale) noexcept { config.autoScale = autoScale; }
+void GaugeV1::setScreenSizeRatio(float ratio) noexcept { config.screenSizeRatio = ratio; }
+void GaugeV1::setTextColor(Color color) noexcept { theme.textColor = color; }
 
-// Set gauge scale
-void GaugeV1::setScale(float scale) {
-    dims.scaleRatio = scale;
-}
-
-// Set gauge base size
-void GaugeV1::setBaseSize(float size) {
-    dims.baseSize = size;
-}
-
-// Set gauge arc thickness
-void GaugeV1::setArcThickness(float thickness) {
-    dims.arcThickness = thickness;
-}
-
-// Set gauge total angle
-void GaugeV1::setTotalAngle(float angle) noexcept {
-    config.totalAngle = angle;
-}
-
-// Set gauge start angle
-void GaugeV1::setStartAngle(float angle) noexcept {
-    config.startAngle = angle;
-}
-
-// Set gauge auto scale
-void GaugeV1::setAutoScale(bool autoScale) noexcept {
-    config.autoScale = autoScale;
-}
-
-// Set gauge screen size ratio
-void GaugeV1::setScreenSizeRatio(float ratio) noexcept {
-    config.screenSizeRatio = ratio;
-}
-
-// Set gauge text color
-void GaugeV1::setTextColor(Color color) noexcept {
-    theme.textColor = color;
-}
-
-// calculate gauge size
 float GaugeV1::calculateGaugeSize() const {
     if (config.autoScale) {
         float screenSize = fmin(GetScreenWidth(), GetScreenHeight());
@@ -127,56 +78,123 @@ float GaugeV1::calculateGaugeSize() const {
     return dims.baseSize * dims.scaleRatio;
 }
 
-// Draw gauge
 void GaugeV1::draw(Vector2 center, const std::string& label) const {
     float gaugeSize = calculateGaugeSize();
     gaugeSize = clamp(gaugeSize, dims.minSize, dims.maxSize);
 
+    float screenMin = std::min(GetScreenWidth(), GetScreenHeight());
+    if (gaugeSize > screenMin * 0.9f) gaugeSize = screenMin * 0.9f;
+
     float outerRadius = gaugeSize / 2;
     float innerRadius = outerRadius * (1.0f - dims.arcThickness);
+    float midRadius = (innerRadius + outerRadius) / 2;
     float endAngle = config.startAngle + config.totalAngle;
     float loadAngle = config.startAngle + (value / 100.0f) * config.totalAngle;
 
-    // Draw background arc
     DrawArc(center, innerRadius, outerRadius, config.startAngle, endAngle, theme.arcBackgroundColor);
 
-    // Draw active arc if the value is greater than 0
-    if (value > 0) {
-        DrawArc(center, innerRadius, outerRadius, config.startAngle, loadAngle, theme.arcActiveColor);
+    if (value > 0.5f) {
+        float glowInner = innerRadius * 0.97f;
+        float glowOuter = outerRadius * 1.03f;
+        DrawArc(center, glowInner, glowOuter, config.startAngle, loadAngle, 
+                {theme.arcActiveColor.r, theme.arcActiveColor.g, theme.arcActiveColor.b, 30});
     }
 
-    // Draw value in the center of the gauge
+    if (value > 0) {
+        DrawArc(center, innerRadius, outerRadius, config.startAngle, loadAngle, theme.arcActiveColor);
+
+        float capR = (outerRadius - innerRadius) * 0.5f;
+        if (capR > 6.0f) capR = 6.0f;
+        if (capR > 1.0f) {
+            Vector2 capPos = {center.x + midRadius * cosf(DegToRad(loadAngle)),
+                              center.y + midRadius * sinf(DegToRad(loadAngle))};
+            DrawCircleV(capPos, capR, theme.arcActiveColor);
+        }
+    }
+
     float valueFontSize = gaugeSize * dims.textSizeRatio * dims.scaleRatio;
-    float labelFontSize = valueFontSize * 0.50; // Make label slightly smaller than value
+    float labelFontSize = valueFontSize * 0.48f;
+    if (labelFontSize < 8.0f) labelFontSize = 8.0f;
     
-    // Draw percentage value
     const char* valueText = TextFormat("%.0f%%", value);
     Vector2 valueTextSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 1);
-    DrawText(valueText, 
-             center.x - valueTextSize.x / 2, 
-             center.y - valueTextSize.y / 2, 
-             valueFontSize, 
+    DrawText(valueText,
+             center.x - valueTextSize.x / 2,
+             center.y - valueTextSize.y / 2,
+             valueFontSize,
              theme.textColor);
 
-    // Draw label based on method
     if (!label.empty()) {
         Vector2 labelTextSize = MeasureTextEx(GetFontDefault(), label.c_str(), labelFontSize, 1);
-        
+
         if (config.method == 1) {
-            // Draw label above the value
-            DrawText(label.c_str(), 
-                    center.x - labelTextSize.x / 2, 
-                    center.y + valueTextSize.y / 2 + innerRadius/16, 
-                    labelFontSize, 
+            DrawText(label.c_str(),
+                    center.x - labelTextSize.x / 2,
+                    center.y + valueTextSize.y / 2 + innerRadius/10,
+                    labelFontSize,
                     theme.textColor);
         }
         else if (config.method == 2) {
-            // Draw label below the value
-            DrawText(label.c_str(), 
-                    center.x + innerRadius/16, 
-                    center.y + (outerRadius - innerRadius)/2 + innerRadius - labelTextSize.y / 2.1, 
-                    labelFontSize, 
+            DrawText(label.c_str(),
+                    center.x + innerRadius/10,
+                    center.y + (outerRadius - innerRadius)/2 + innerRadius - labelTextSize.y / 2.1f,
+                    labelFontSize,
                     theme.textColor);
         }
+    }
+}
+
+void GaugeV1::drawInRect(Rectangle bounds, const std::string& label) const {
+    float maxRadius = std::min(bounds.width * 0.42f, bounds.height * 0.42f);
+    if (maxRadius > dims.maxSize / 2.0f) maxRadius = dims.maxSize / 2.0f;
+    if (maxRadius < 20.0f) maxRadius = 20.0f;
+    Vector2 center = { bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.45f };
+
+    float outerRadius = maxRadius;
+    float innerRadius = outerRadius * (1.0f - dims.arcThickness);
+    float midRadius = (innerRadius + outerRadius) / 2;
+    float endAngle = config.startAngle + config.totalAngle;
+    float loadAngle = config.startAngle + (value / 100.0f) * config.totalAngle;
+
+    DrawArc(center, innerRadius, outerRadius, config.startAngle, endAngle, theme.arcBackgroundColor);
+
+    if (value > 0.5f) {
+        float glowInner = innerRadius * 0.97f;
+        float glowOuter = outerRadius * 1.03f;
+        DrawArc(center, glowInner, glowOuter, config.startAngle, loadAngle, 
+                {theme.arcActiveColor.r, theme.arcActiveColor.g, theme.arcActiveColor.b, 30});
+    }
+
+    if (value > 0) {
+        DrawArc(center, innerRadius, outerRadius, config.startAngle, loadAngle, theme.arcActiveColor);
+
+        float capR = (outerRadius - innerRadius) * 0.5f;
+        if (capR > 6.0f) capR = 6.0f;
+        if (capR > 1.0f) {
+            Vector2 capPos = {center.x + midRadius * cosf(DegToRad(loadAngle)),
+                              center.y + midRadius * sinf(DegToRad(loadAngle))};
+            DrawCircleV(capPos, capR, theme.arcActiveColor);
+        }
+    }
+
+    float valueFontSize = outerRadius * 0.35f;
+    float labelFontSize = valueFontSize * 0.48f;
+    if (labelFontSize < 8.0f) labelFontSize = 8.0f;
+
+    const char* valueText = TextFormat("%.0f%%", value);
+    Vector2 valueTextSize = MeasureTextEx(GetFontDefault(), valueText, valueFontSize, 1);
+    DrawText(valueText,
+             center.x - valueTextSize.x / 2,
+             center.y - valueTextSize.y / 2,
+             valueFontSize,
+             theme.textColor);
+
+    if (!label.empty()) {
+        Vector2 labelTextSize = MeasureTextEx(GetFontDefault(), label.c_str(), labelFontSize, 1);
+        DrawText(label.c_str(),
+                 center.x - labelTextSize.x / 2,
+                 center.y + valueTextSize.y / 2 + innerRadius / 10,
+                 labelFontSize,
+                 theme.textColor);
     }
 }

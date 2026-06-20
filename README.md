@@ -1,19 +1,26 @@
 # Performance Monitor
 
-Real-time system performance monitor for Windows. Displays CPU frequency/utilization, RAM, disk, and network metrics using raylib for rendering and the Windows PDH (Performance Data Helper) API for data collection.
+Real-time system performance monitor for Windows. Displays CPU, RAM, GPU, disk, and network metrics using raylib for rendering and the Windows PDH (Performance Data Helper) API for data collection.
 
 ## Features
-- CPU: real-time frequency (MHz) and utilization (%)
-- RAM: usage (GB) and utilization (%)
-- Disk: C: drive usage (%)
-- Network: Wi-Fi and Ethernet send/receive rates (Mbps)
-- Dynamic network adapter detection (no hardcoded names)
-- Threaded rendering at 30+ FPS with zero blocking calls
-- Resizable window with auto-scaling UI elements
+- **CPU:** real-time frequency (MHz) and utilization (%)
+- **RAM:** usage (GB) and utilization (%)
+- **GPU:** utilization per engine instance (multi-GPU support)
+- **Disk:** all fixed drives with per-disk usage and utilization
+- **Network:** Wi-Fi and Ethernet send/receive rates (Mbps)
+- **Dynamic adapter/GPU discovery:** no hardcoded names
+- **Tile UI:** drag, resize, snap-to-grid, collision avoidance
+- **Themes:** Dark, Light, High Contrast (persisted across sessions)
+- **Diagnostics overlay (F2):** live CPU/RAM/GPU/Disk/Network info, export to file
+- **Settings overlay (F3):** per-tile, per-disk, per-adapter visibility toggles
+- **CSV logging (F4):** toggle timestamped metrics logging to file
+- **Config persistence:** theme, tile state, window position saved to `%APPDATA%\PerfMon\config.ini`
+- **Threaded rendering** at 30+ FPS with zero blocking calls
+- **Resizable window** with auto-scaling UI elements
 
 ## Requirements
-- Windows 7 or later
-- CMake 3.20+ (or MinGW-g++ for legacy Makefile)
+- Windows 10 or later
+- CMake 3.20+
 
 ## Build
 
@@ -24,20 +31,27 @@ cmake --build build --config Release
 ```
 Output: `build\Release\perfmon.exe`
 
-### Makefile (legacy)
-Requires raylib installed at `C:/raylib/raylib`.
+### Tests
 ```powershell
-make
+cmake --build build --config Release --target perfmon_tests
+.\build\Release\perfmon_tests.exe
 ```
 
 ## Usage
-Run `perfmon.exe`. The UI is split into four quadrants:
-- Top-left: CPU (gauge shows utilization, bar shows frequency)
-- Top-right: RAM (gauge shows memory load)
-- Bottom-left: Network (Wi-Fi and Ethernet send/receive rates)
-- Bottom-right: Disk (C: drive utilization)
+Run `perfmon.exe`. The UI shows a tile-based dashboard:
+- **CPU:** gauge (utilization) + bar (frequency)
+- **RAM:** gauge (memory load)
+- **GPU:** one bar per GPU engine instance
+- **Network:** Wi-Fi and Ethernet send/receive bars
+- **Storage:** per-disk utilization bars
 
-Close the window or press Escape to exit.
+### Controls
+| Key | Action |
+|-----|--------|
+| F2 | Toggle diagnostics overlay (scroll with mouse wheel) |
+| F3 | Toggle settings (enable/disable tiles, disks, adapters) |
+| F4 | Toggle CSV logging |
+| Escape / Close | Exit (saves config) |
 
 ## License
 See `resources/LICENSE`.

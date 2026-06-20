@@ -17,6 +17,24 @@ public:
         float totalGB{0.0f};
         float usedGB{0.0f};
         float utilization{0.0f};
+        bool enabled{true};
+    };
+
+    struct AdapterInfo {
+        std::wstring name;
+        bool isWiFi{false};
+        bool isEthernet{false};
+        bool enabled{true};
+    };
+
+    struct GPUInstance {
+        PDH_HQUERY query{nullptr};
+        PDH_HCOUNTER counter{nullptr};
+        std::wstring name;
+        std::string displayName;
+        LARGE_INTEGER collectTime{};
+        bool primed{false};
+        float cachedUtilization{0.0f};
     };
 
 private:
@@ -40,13 +58,8 @@ private:
     std::vector<DiskInfo> disks;
 
     // GPU measurements
-    PDH_HQUERY gpuQuery{nullptr};
-    PDH_HCOUNTER gpuCounter{nullptr};
-    std::wstring gpuName;
+    std::vector<GPUInstance> gpuInstances;
     std::string gpuModel;
-    std::atomic<float> GPUUtilization{0.0f};
-    LARGE_INTEGER gpuCollectTime{};
-    bool gpuPrimed{false};
 
     // Network measurements
     struct NetworkCounters {
@@ -64,6 +77,7 @@ private:
 
     // Discovered adapters for diagnostics
     std::vector<std::wstring> discoveredAdapters;
+    std::vector<AdapterInfo> adapterInfos;
 
     LARGE_INTEGER lastCPUTime{};
 
@@ -94,10 +108,11 @@ public:
     [[nodiscard]] float GETDiskUsed(int index) noexcept;
     [[nodiscard]] float GETDiskUtilization(int index) noexcept;
 
-    [[nodiscard]] float GETGPUUtilization() noexcept;
-    [[nodiscard]] const wchar_t* GETGPUName() const noexcept { return gpuName.c_str(); }
+    [[nodiscard]] int GETGPUCount() const noexcept { return static_cast<int>(gpuInstances.size()); }
+    [[nodiscard]] float GETGPUUtilization(int index = 0) noexcept;
+    [[nodiscard]] const wchar_t* GETGPUName(int index = 0) const noexcept;
     [[nodiscard]] const char* GETGPUModel() const noexcept { return gpuModel.c_str(); }
-    [[nodiscard]] bool IsGPUAvailable() const noexcept { return gpuQuery != nullptr; }
+    [[nodiscard]] bool IsGPUAvailable() const noexcept { return !gpuInstances.empty(); }
 
     [[nodiscard]] float GETWiFiSend() noexcept;
     [[nodiscard]] float GETWiFiReceive() noexcept;
@@ -105,6 +120,11 @@ public:
     [[nodiscard]] float GETEthernetReceive() noexcept;
 
     [[nodiscard]] const std::vector<std::wstring>& GetDiscoveredAdapters() const noexcept { return discoveredAdapters; }
+
+    [[nodiscard]] const std::vector<AdapterInfo>& GetAdapters() const noexcept { return adapterInfos; }
+    [[nodiscard]] const std::vector<DiskInfo>& GetDisks() const noexcept { return disks; }
+    void SetDiskEnabled(int index, bool enabled) noexcept;
+    void SetAdapterEnabled(int index, bool enabled) noexcept;
 };
 
 #endif

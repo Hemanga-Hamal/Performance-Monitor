@@ -20,12 +20,16 @@ set(SOURCES
     src/BarV1.cpp
     src/GaugeV1.cpp
     src/StatsV1.cpp
+    src/ConfigV1.cpp
+    src/LoggerV1.cpp
 )
 
 set(HEADERS
     src/BarV1.h
     src/GaugeV1.h
     src/StatsV1.h
+    src/ConfigV1.h
+    src/LoggerV1.h
 )
 
 # --- Executable ---

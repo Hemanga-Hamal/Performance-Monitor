@@ -92,6 +92,7 @@ public:
 
     float calculateGaugeSize() const;
     void draw(Vector2 center, const std::string& label) const;
+    void drawInRect(Rectangle bounds, const std::string& label) const;
 };
 
 #endif // GaugeV1_H

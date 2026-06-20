@@ -36,6 +36,8 @@ public:
     BarV1(const Theme& theme, const Dimensions& dimensions, const Config& config);
 
     void draw(Vector2 centre, const std::string& label, const std::string& numb) const;
+    void drawInRect(Rectangle bounds, const std::string& label, const std::string& numb) const;
+    float getTotalHeight() const;
 
     void setTheme(const Theme& newTheme);
     void setDimensions(const Dimensions& newDimensions);

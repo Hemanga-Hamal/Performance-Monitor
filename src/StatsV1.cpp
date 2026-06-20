@@ -8,25 +8,31 @@ namespace {
     constexpr float BYTES_TO_MBPS = 8.0f / 1e6;
 
     std::vector<std::wstring> FindNetworkAdapters() {
-        std::vector<std::wstring> adapters;
-        DWORD instBufSize = 0;
-        DWORD counterBufSize = 0;
-        PdhEnumObjectItemsW(nullptr, nullptr, L"Network Interface",
-                            nullptr, &instBufSize, nullptr, &counterBufSize,
-                            PERF_DETAIL_WIZARD, 0);
-        if (instBufSize == 0) return adapters;
+        std::vector<std::wstring> seen;
+        DWORD bufSize = 0;
 
-        std::vector<wchar_t> instances(instBufSize);
-        if (PdhEnumObjectItemsW(nullptr, nullptr, L"Network Interface",
-                                instances.data(), &instBufSize, nullptr, &counterBufSize,
-                                PERF_DETAIL_WIZARD, 0) != ERROR_SUCCESS) {
-            return adapters;
+        if (PdhExpandWildCardPathW(nullptr, L"\\Network Interface(*)\\Bytes Total/sec",
+                                    nullptr, &bufSize, 0) == ERROR_SUCCESS || bufSize == 0) {
+            return seen;
+        }
+        std::vector<wchar_t> buf(bufSize + 1);
+        if (PdhExpandWildCardPathW(nullptr, L"\\Network Interface(*)\\Bytes Total/sec",
+                                    buf.data(), &bufSize, 0) != ERROR_SUCCESS) {
+            return seen;
         }
 
-        for (const wchar_t* inst = instances.data(); *inst; inst += wcslen(inst) + 1) {
-            adapters.push_back(inst);
+        for (const wchar_t* p = buf.data(); *p; p += wcslen(p) + 1) {
+            std::wstring path = p;
+            size_t open = path.find(L'(');
+            size_t close = path.find(L')');
+            if (open == std::wstring::npos || close == std::wstring::npos) continue;
+            std::wstring name = path.substr(open + 1, close - open - 1);
+            if (name.empty()) continue;
+            bool dup = false;
+            for (const auto& s : seen) { if (s == name) { dup = true; break; } }
+            if (!dup) seen.push_back(name);
         }
-        return adapters;
+        return seen;
     }
 
     bool NameContainsKeyword(const std::wstring& name, const wchar_t* keyword) {
@@ -125,45 +131,73 @@ StatsV1::StatsV1() noexcept {
         InitializeNetworkCounter(ethernet, ethName.c_str());
     }
 
-    // Save for diagnostics
+    // Save for diagnostics and per-adapter toggles
     discoveredAdapters = std::move(adapters);
+    for (const auto& name : discoveredAdapters) {
+        AdapterInfo info;
+        info.name = name;
+        info.isWiFi = (name == wifiName);
+        info.isEthernet = (name == ethName);
+        adapterInfos.push_back(info);
+    }
 
-    // Initialize GPU query
-    if (PdhOpenQuery(nullptr, 0, &gpuQuery) == ERROR_SUCCESS) {
+    // Initialize GPU queries (multi-GPU)
+    {
         DWORD bufSize = 0;
-        DWORD counterBufSize = 0;
-        PdhEnumObjectItemsW(nullptr, nullptr, L"GPU Engine",
-                            nullptr, &bufSize, nullptr, &counterBufSize,
-                            PERF_DETAIL_WIZARD, 0);
+        PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
+                                nullptr, &bufSize, 0);
         if (bufSize > 0) {
-            std::vector<wchar_t> instances(bufSize);
-            if (PdhEnumObjectItemsW(nullptr, nullptr, L"GPU Engine",
-                                    instances.data(), &bufSize, nullptr, &counterBufSize,
-                                    PERF_DETAIL_WIZARD, 0) == ERROR_SUCCESS) {
-                for (const wchar_t* inst = instances.data(); *inst; inst += wcslen(inst) + 1) {
-                    if (wcscmp(inst, L"_Total") == 0) continue;
+            std::vector<wchar_t> buf(bufSize + 1);
+            if (PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
+                                        buf.data(), &bufSize, 0) == ERROR_SUCCESS) {
+                for (const wchar_t* p = buf.data(); *p; p += wcslen(p) + 1) {
+                    std::wstring path = p;
+                    size_t open = path.find(L'(');
+                    size_t close = path.find(L')');
+                    if (open == std::wstring::npos || close == std::wstring::npos) continue;
+                    std::wstring name = path.substr(open + 1, close - open - 1);
+                    if (name.empty() || name == L"_Total") continue;
+
+                    GPUInstance gpu;
+                    if (PdhOpenQuery(nullptr, 0, &gpu.query) != ERROR_SUCCESS) continue;
                     wchar_t gpuPath[256];
-                    swprintf_s(gpuPath, L"\\GPU Engine(%s)\\Utilization Percentage", inst);
-                    if (PdhAddCounterW(gpuQuery, gpuPath, 0, &gpuCounter) == ERROR_SUCCESS) {
-                        gpuName = inst;
-                        PdhCollectQueryData(gpuQuery);
-                        break;
+                    swprintf_s(gpuPath, 256, L"\\GPU Engine(%s)\\Utilization Percentage", name.c_str());
+                    if (PdhAddCounterW(gpu.query, gpuPath, 0, &gpu.counter) != ERROR_SUCCESS) {
+                        PdhCloseQuery(gpu.query);
+                        continue;
                     }
+                    gpu.name = name;
+                    PdhCollectQueryData(gpu.query);
+                    gpuInstances.push_back(std::move(gpu));
                 }
             }
-        }
-        if (gpuName.empty()) {
-            PdhCloseQuery(gpuQuery);
-            gpuQuery = nullptr;
         }
     }
 
     // Read GPU model name via EnumDisplayDevices
     DISPLAY_DEVICEW dd = {sizeof(dd)};
-    if (EnumDisplayDevicesW(nullptr, 0, &dd, 0)) {
+    DWORD devIdx = 0;
+    while (EnumDisplayDevicesW(nullptr, devIdx, &dd, 0)) {
+        devIdx++;
+        if (!(dd.StateFlags & DISPLAY_DEVICE_ACTIVE)) continue;
+
         int len = WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, nullptr, 0, nullptr, nullptr);
-        gpuModel.resize(len > 0 ? len - 1 : 0);
-        if (len > 0) WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, &gpuModel[0], len, nullptr, nullptr);
+        std::string model;
+        model.resize(len > 0 ? len - 1 : 0);
+        if (len > 0) WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, &model[0], len, nullptr, nullptr);
+
+        if (gpuModel.empty()) gpuModel = model;
+
+        if (devIdx - 1 < static_cast<DWORD>(gpuInstances.size())) {
+            int glen = WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, nullptr, 0, nullptr, nullptr);
+            std::string gname;
+            gname.resize(glen > 0 ? glen - 1 : 0);
+            if (glen > 0) WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, &gname[0], glen, nullptr, nullptr);
+            gpuInstances[devIdx - 1].displayName = gname;
+        }
+    }
+    if (gpuModel.empty() && !gpuInstances.empty()) {
+        gpuModel = "GPU";
     }
 
     QueryPerformanceCounter(&lastCPUTime);
@@ -178,9 +212,11 @@ StatsV1::~StatsV1() noexcept {
     CleanupNetworkCounter(wifi);
     CleanupNetworkCounter(ethernet);
 
-    if (gpuQuery) {
-        if (gpuCounter) PdhRemoveCounter(gpuCounter);
-        PdhCloseQuery(gpuQuery);
+    for (auto& gpu : gpuInstances) {
+        if (gpu.query) {
+            if (gpu.counter) PdhRemoveCounter(gpu.counter);
+            PdhCloseQuery(gpu.query);
+        }
     }
 }
 
@@ -191,8 +227,8 @@ bool StatsV1::InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* 
 
     wchar_t sendPath[PDH_MAX_COUNTER_PATH];
     wchar_t receivePath[PDH_MAX_COUNTER_PATH];
-    swprintf_s(sendPath, L"\\Network Interface(%s)\\Bytes Sent/sec", adapterName);
-    swprintf_s(receivePath, L"\\Network Interface(%s)\\Bytes Received/sec", adapterName);
+    swprintf_s(sendPath, PDH_MAX_COUNTER_PATH, L"\\Network Interface(%s)\\Bytes Sent/sec", adapterName);
+    swprintf_s(receivePath, PDH_MAX_COUNTER_PATH, L"\\Network Interface(%s)\\Bytes Received/sec", adapterName);
 
     if (PdhAddCounterW(counter.query, sendPath, 0, &counter.sendCounter) != ERROR_SUCCESS ||
         PdhAddCounterW(counter.query, receivePath, 0, &counter.receiveCounter) != ERROR_SUCCESS) {
@@ -222,7 +258,7 @@ float StatsV1::GetNetworkRate(NetworkCounters& counter, PDH_HCOUNTER hCounter) n
     QueryPerformanceCounter(&now);
     QueryPerformanceFrequency(&freq);
     double elapsed = static_cast<double>(now.QuadPart - counter.lastCollect.QuadPart) / freq.QuadPart;
-    if (elapsed < 0.5) return counter.sendRate;
+    if (elapsed < 0.5) return (hCounter == counter.receiveCounter) ? counter.receiveRate : counter.sendRate;
 
     if (PdhCollectQueryData(counter.query) != ERROR_SUCCESS) {
         counter.sendRate = 0.0f;
@@ -348,33 +384,40 @@ float StatsV1::GETDiskUtilization(int index) noexcept {
     return total > 0.0f ? (used / total) * 100.0f : 0.0f;
 }
 
-float StatsV1::GETGPUUtilization() noexcept {
-    if (!gpuQuery || !gpuCounter) return GPUUtilization.load();
+const wchar_t* StatsV1::GETGPUName(int index) const noexcept {
+    if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return L"";
+    return gpuInstances[index].name.c_str();
+}
+
+float StatsV1::GETGPUUtilization(int index) noexcept {
+    if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0.0f;
+    auto& gpu = gpuInstances[index];
+    if (!gpu.query || !gpu.counter) return gpu.cachedUtilization;
 
     LARGE_INTEGER now, freq;
     QueryPerformanceCounter(&now);
     QueryPerformanceFrequency(&freq);
 
-    if (!gpuPrimed) {
-        PdhCollectQueryData(gpuQuery);
-        gpuCollectTime = now;
-        gpuPrimed = true;
-        return GPUUtilization.load();
+    if (!gpu.primed) {
+        PdhCollectQueryData(gpu.query);
+        gpu.collectTime = now;
+        gpu.primed = true;
+        return gpu.cachedUtilization;
     }
 
-    double elapsed = static_cast<double>(now.QuadPart - gpuCollectTime.QuadPart) / freq.QuadPart;
-    if (elapsed < 0.5) return GPUUtilization.load();
+    double elapsed = static_cast<double>(now.QuadPart - gpu.collectTime.QuadPart) / freq.QuadPart;
+    if (elapsed < 0.5) return gpu.cachedUtilization;
 
     PDH_FMT_COUNTERVALUE val;
-    if (PdhCollectQueryData(gpuQuery) != ERROR_SUCCESS ||
-        PdhGetFormattedCounterValue(gpuCounter, PDH_FMT_DOUBLE, nullptr, &val) != ERROR_SUCCESS) {
-        gpuPrimed = false;
-        return GPUUtilization.load();
+    if (PdhCollectQueryData(gpu.query) != ERROR_SUCCESS ||
+        PdhGetFormattedCounterValue(gpu.counter, PDH_FMT_DOUBLE, nullptr, &val) != ERROR_SUCCESS) {
+        gpu.primed = false;
+        return gpu.cachedUtilization;
     }
 
-    GPUUtilization.store(static_cast<float>(val.doubleValue));
-    gpuCollectTime = now;
-    return GPUUtilization.load();
+    gpu.cachedUtilization = static_cast<float>(val.doubleValue);
+    gpu.collectTime = now;
+    return gpu.cachedUtilization;
 }
 
 float StatsV1::GETWiFiSend() noexcept {
@@ -391,4 +434,16 @@ float StatsV1::GETEthernetSend() noexcept {
 
 float StatsV1::GETEthernetReceive() noexcept {
     return GetNetworkRate(ethernet, ethernet.receiveCounter);
+}
+
+void StatsV1::SetDiskEnabled(int index, bool enabled) noexcept {
+    if (index >= 0 && index < static_cast<int>(disks.size())) {
+        disks[index].enabled = enabled;
+    }
+}
+
+void StatsV1::SetAdapterEnabled(int index, bool enabled) noexcept {
+    if (index >= 0 && index < static_cast<int>(adapterInfos.size())) {
+        adapterInfos[index].enabled = enabled;
+    }
 }
