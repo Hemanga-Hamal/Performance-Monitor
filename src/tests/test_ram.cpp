@@ -1,7 +1,7 @@
 #include "test_harness.h"
-#include "StatsV1.h"
+#include "StatsCollector.h"
 
-void RunRAMTests(StatsV1& stats) {
+void RunRAMTests(StatsCollector& stats) {
     printf("\n[RAM Tests]\n");
 
     TEST("GETRAMTotal > 0");

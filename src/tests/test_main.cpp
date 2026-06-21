@@ -2,7 +2,7 @@
 #define NOMINMAX
 
 #include "test_harness.h"
-#include "StatsV1.h"
+#include "StatsCollector.h"
 
 int testPassed = 0;
 int testFailed = 0;
@@ -10,7 +10,7 @@ int testFailed = 0;
 int main() {
     printf("\n=== Performance Monitor Tests ===\n");
 
-    StatsV1 stats;
+    StatsCollector stats;
 
     RunCPUTests(stats);
     RunRAMTests(stats);

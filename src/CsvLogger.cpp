@@ -1,13 +1,13 @@
-#include "LoggerV1.h"
+#include "CsvLogger.h"
 #include <ctime>
 
-LoggerV1::LoggerV1() noexcept {}
+CsvLogger::CsvLogger() noexcept {}
 
-LoggerV1::~LoggerV1() noexcept {
+CsvLogger::~CsvLogger() noexcept {
     stop();
 }
 
-bool LoggerV1::start(const wchar_t* basePath) noexcept {
+bool CsvLogger::start(const wchar_t* basePath) noexcept {
     if (mFile) stop();
 
     mPath = basePath;
@@ -27,14 +27,14 @@ bool LoggerV1::start(const wchar_t* basePath) noexcept {
     return true;
 }
 
-void LoggerV1::stop() noexcept {
+void CsvLogger::stop() noexcept {
     if (mFile) {
         fclose(mFile);
         mFile = nullptr;
     }
 }
 
-void LoggerV1::writeRow(float cpuFreq, float cpuUtil, float ramUsed, float ramUtil,
+void CsvLogger::writeRow(float cpuFreq, float cpuUtil, float ramUsed, float ramUtil,
                          float gpuUtil, float wifiSend, float wifiRecv,
                          float ethSend, float ethRecv) noexcept {
     if (!mFile) return;

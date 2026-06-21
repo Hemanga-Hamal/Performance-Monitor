@@ -1,11 +1,12 @@
-#ifndef GaugeV1_H
-#define GaugeV1_H
+#ifndef GAUGEWIDGET_H
+#define GAUGEWIDGET_H
 
 #include "raylib.h"
+#include "AppTheme.h"
 #include <string>
 #include <cmath>
 
-class GaugeV1 {
+class GaugeWidget {
 public:
     static float clamp(float value, float min, float max);
 
@@ -23,6 +24,7 @@ public:
         Color textColor;
 
         Theme();
+        static Theme fromAppTheme(const ::AppTheme& t);
     };
 
     struct Dimensions {
@@ -76,7 +78,7 @@ private:
     float value;
 
 public:
-    GaugeV1(const Theme& theme = Theme(), 
+    GaugeWidget(const Theme& theme = Theme(), 
            const Dimensions& dimensions = Dimensions(),
            const Config& config = Config());
 
@@ -89,10 +91,11 @@ public:
     void setAutoScale(bool autoScale) noexcept;
     void setScreenSizeRatio(float ratio) noexcept;
     void setTextColor(Color color) noexcept;
+    void setTheme(const Theme& newTheme) noexcept { theme = newTheme; }
 
     float calculateGaugeSize() const;
     void draw(Vector2 center, const std::string& label) const;
     void drawInRect(Rectangle bounds, const std::string& label) const;
 };
 
-#endif // GaugeV1_H
+#endif // GaugeWidget_H

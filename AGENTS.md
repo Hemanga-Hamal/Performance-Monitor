@@ -22,37 +22,46 @@ Project root
 │   └── LICENSE             # Project license
 └── src/
     ├── main.cpp            # Entry point, 2 threads (updateStats + renderLoop)
-    │                       # Landing page: theme picker with 3 cards, "Start Monitoring" button
-    │                       # Dashboard: 5 tiles in 4x6 grid, F2 diagnostics, F3 settings, F4 CSV logging
-    │                       # Status bar: 30px bar at bottom with key hints + log status
-    │                       # Tile content: per-tile gauge/bar rendering with content-boundary clamping
-    ├── StatsV1.cpp / .h    # PDH + Win32 stats collector
+    │                       # Dashboard: tile grid rendering, status bar, CSV logging, tooltips
+    ├── LandingPage.cpp/.h  # Landing page: theme picker (3 cards), "Start Monitoring" button
+    │                       # Defines enum AppState { LANDING, DASHBOARD }
+    ├── DiagnosticsOverlay.cpp/.h  # F2 diagnostics panel: frosted overlay, scroll, sections, Save
+    ├── SettingsOverlay.cpp/.h     # F3 settings panel: tile/disk/adapter toggle checkboxes
+    ├── StatsData.h         # Shared StatsData struct (atomics for CPU/RAM/GPU/Disk/Network)
+    │                       # Used by both threads — single-writer, single-reader
+    ├── StatsCollector.cpp / .h    # PDH + Win32 stats collector
     │                       # CPU: frequency (PDH), utilization (GetSystemTimes), model (registry)
     │                       # RAM: total/used/util (GlobalMemoryStatusEx)
     │                       # GPU: multi-instance via PdhExpandWildCardPathW("\\GPU Engine(*)\\...")
     │                       # Disk: all DRIVE_FIXED via GetLogicalDrives, per-disk enabled/disabled
     │                       # Network: WiFi/Ethernet via PdhExpandWildCardPathW, keyword filter
     │                       # Timing: non-blocking QPC-timed two-phase collection
-    ├── BarV1.cpp / .h      # Horizontal progress bar widget
-    │                       # Rounded ends (DrawRectangleRounded), auto-scale or fixed mode
-    │                       # Label truncation with "..." on narrow bars
-    │                       # getTotalHeight() returns bar+text full vertical space
-    │                       # drawInRect() for bounded rendering within rectangles
-    ├── GaugeV1.cpp / .h    # Circular arc gauge widget (300-segment triangle arc)
+    ├── BarWidget.cpp / .h      # Horizontal progress bar widget
+    │                       # Rounded ends (DrawRectangleRounded), gradient fill, auto-scale or fixed mode
+    │                       # Label truncation with "..." on narrow bars, hover tooltip
+    │                       # getTotalHeight(), drawInRect(); supports Theme::fromAppTheme()
+    ├── GaugeWidget.cpp / .h    # Circular arc gauge widget (300-segment triangle arc)
     │                       # Glow effect behind active arc, rounded endpoint cap (DrawCircleV)
     │                       # ConfigArc (240 deg), ConfigQuarter (270 deg) presets
-    │                       # drawInRect() for bounded rendering within rectangles
-    ├── ConfigV1.cpp / .h   # Config persistence via INI file in %APPDATA%\PerfMon\config.ini
+    │                       # drawInRect(); supports Theme::fromAppTheme()
+    ├── ConfigManager.cpp / .h   # Config persistence via INI file in %APPDATA%\PerfMon\config.ini
     │                       # Save/load: themeIndex, tileEnabled[5], window position/size
-    ├── LoggerV1.cpp / .h   # CSV logger, F4 toggle, writes timestamped rows to working directory
-    ├── TileV1.h            # Grid tile widget (4x6 default grid)
-    │                       # computeBounds (grid layout), handleDrag (mouse drag/resize),
-    │                       # computeSnapPreview (ghost during drag), snapToGrid (on release),
-    │                       # resolveCollisions (scan all grid cells for empty space),
-    │                       # drawFrame (shadow, rounded border, title, separator, grip),
-    │                       # Auto-span: spanCols/spanRows recomputed from bounds/cell ratio on snap
-    ├── ThemeV1.h           # Color theme: Dark, Light, HighContrast presets
-    │                       # 22 color fields: window, tile, shadow, accent, hover, panel, etc.
+    ├── CsvLogger.cpp / .h   # CSV logger, F4 toggle, writes timestamped rows to working directory
+    ├── TileItem.h            # Grid tile widget with drag-to-swap
+    │                       # TileItem: col, row, spanCols, spanRows, title, bounds, computeBounds, titleBar
+    │                       # GridLayout: cols, rows, offsetY, tiles vector, layout(), tileAt(), tileAtPos(),
+    │                       #   swapPositions(), applyConfig()
+    │                       # GridConfig/GridPresets: configurable grid sizes (4x6, 3x4, 5x6, 2x3, 3x6), F5 toggle
+    │                       # Drag-to-swap: dragging a tile drops it onto another's grid position, swapping both
+    │                       # Ghost preview: target tile glows with accent color during drag
+    ├── AppTheme.h           # Color theme: Dark, Light, HighContrast static presets
+    │                       # 22 color fields: windowBg, tileBg, tileBorder, tileShadow, titleText,
+    │                       # textPrimary/Secondary/Muted, lineColor, barBackground/Foreground/ForegroundDim,
+    │                       # gaugeArcBg/ArcActive/ArcGlow/GaugeText, landingBg, accentColor, accentHover,
+    │                       # panelOverlay, toggleActive/Inactive, scrollbarColor
+    ├── TitleBar.h / .cpp   # Custom 32px title bar (shared between LANDING and DASHBOARD states)
+    │                       # Centered title, close button (X with hover color), window drag via GetMouseDelta
+    ├── TitleBarWin32.cpp   # Win32 subclass: WM_NCHITTEST→HTCAPTION, DwmExtendFrameIntoClientArea
     └── tests/
         ├── test_main.cpp       # Test runner (63 tests, 7 groups)
         ├── test_harness.h      # Shared macros: TEST, CHECK, CHECK_EQ, CHECK_RANGE
@@ -61,7 +70,7 @@ Project root
         ├── test_gpu.cpp        # GPU tests (available, utilization, model, name)
         ├── test_disk.cpp       # Disk tests (count, name, total, used, utilization)
         ├── test_network.cpp    # Network tests (WiFi/Ethernet send/receive, adapter list)
-        └── test_graphics.cpp   # Widget tests (BarV1: theme/dims/config/sizing; GaugeV1: clamp/presets/setters)
+        └── test_graphics.cpp   # Widget tests (BarWidget/GaugeWidget: theme, dims, config, sizing, presets)
 ```
 
 ## Build Commands
@@ -100,7 +109,7 @@ Remove-Item -Recurse -Force build
   ```
 
 ### Naming
-- Classes: PascalCase (StatsV1, BarV1, GaugeV1, TileV1, ConfigV1, LoggerV1)
+- Classes: PascalCase (StatsCollector, BarWidget, GaugeWidget, TileItem, ConfigManager, CsvLogger)
 - Methods: camelCase (setValue, calculateBarSize, getTotalHeight)
 - PDH getters: ALLCAPS (GETCPUFrequency, GETRAMUsed)
 - Members: camelCase (cpuQuery, barWidth, gpuInstances, adapterInfos)
@@ -123,33 +132,32 @@ Remove-Item -Recurse -Force build
 
 | Type | Location | Purpose |
 |------|----------|---------|
-| `StatsV1` | StatsV1.h | Stats collector (CPU/RAM/GPU/Disk/Network) |
-| `StatsV1::GPUInstance` | StatsV1.h | Per-GPU PDH query, counter, name, displayName, cached utilization |
-| `StatsV1::DiskInfo` | StatsV1.h | Per-disk info (name, total GB, used GB, utilization, enabled) |
-| `StatsV1::AdapterInfo` | StatsV1.h | Per-adapter info (name, isWiFi, isEthernet, enabled) |
-| `StatsV1::NetworkCounters` | StatsV1.h (private) | PDH handles + cached rates + timing for one interface |
-| `BarV1` | BarV1.h | Horizontal progress bar widget |
-| `BarV1::Theme` | BarV1.h | Bar colors (background, foreground, text) |
-| `BarV1::Dimensions` | BarV1.h | Bar sizing (width, height, scalingRatio, textSizeRatio, minSize, maxSize) |
-| `BarV1::Config` | BarV1.h | Bar value config (value, maxValue, autoScale, screenSizeRatio) |
-| `GaugeV1` | GaugeV1.h | Circular arc gauge widget |
-| `GaugeV1::Theme` | GaugeV1.h | Gauge colors (bg, arcBg, arcActive, text) |
-| `GaugeV1::Dimensions` | GaugeV1.h | Gauge sizing (baseSize, scaleRatio, arcThickness, textSizeRatio, minSize, maxSize) |
-| `GaugeV1::Config` | GaugeV1.h | Gauge config (startAngle, totalAngle, autoScale, screenSizeRatio, method) |
-| `TileV1` | TileV1.h | Tile widget (bounds, drag, resize, snap, collision avoidance) |
-| `TileConfig` | TileV1.h | Tile grid position (col, row, spanCols, spanRows, title) |
-| `ThemeV1` | ThemeV1.h | App-wide 22-field color theme (Dark, Light, HighContrast static presets) |
-| `AppConfig` | ConfigV1.h | Persisted config (themeIndex, tileEnabled[5], window pos/size) |
-| `ConfigV1` | ConfigV1.h | Load/save AppConfig from %APPDATA%\PerfMon\config.ini |
-| `LoggerV1` | LoggerV1.h | CSV log writer (F4 toggle, timestamped rows) |
-| `StatsData` | main.cpp | Atomic wrappers for cross-thread stats sharing |
+| `StatsCollector` | StatsCollector.h | Stats collector (CPU/RAM/GPU/Disk/Network) |
+| `StatsCollector::GPUInstance` | StatsCollector.h | Per-GPU PDH query, counter, name, displayName, cached utilization |
+| `StatsCollector::DiskInfo` | StatsCollector.h | Per-disk info (name, total GB, used GB, utilization, enabled) |
+| `StatsCollector::AdapterInfo` | StatsCollector.h | Per-adapter info (name, isWiFi, isEthernet, enabled) |
+| `StatsCollector::NetworkCounters` | StatsCollector.h (private) | PDH handles + cached rates + timing for one interface |
+| `BarWidget` | BarWidget.h | Horizontal progress bar widget |
+| `BarWidget::Theme` | BarWidget.h | Bar colors; has `fromAppTheme()` factory accepting AppTheme |
+| `BarWidget::Dimensions` | BarWidget.h | Bar sizing (width, height, scalingRatio, textSizeRatio, minSize, maxSize) |
+| `BarWidget::Config` | BarWidget.h | Bar value config (value, maxValue, autoScale, screenSizeRatio) |
+| `GaugeWidget` | GaugeWidget.h | Circular arc gauge widget |
+| `GaugeWidget::Theme` | GaugeWidget.h | Gauge colors; has `fromAppTheme()` factory accepting AppTheme |
+| `GaugeWidget::Dimensions` | GaugeWidget.h | Gauge sizing (baseSize, scaleRatio, arcThickness, textSizeRatio, minSize, maxSize) |
+| `GaugeWidget::Config` | GaugeWidget.h | Gauge config (startAngle, totalAngle, autoScale, screenSizeRatio, method) |
+| `TileItem` | TileItem.h | Grid tile struct (col, row, span, title, bounds) |
+| `GridLayout` | TileItem.h | Grid layout manager with swap logic |
+| `GridConfig` / `GridPresets` | TileItem.h | Configurable grid presets (4x6 default, 3x4, 5x6, 2x3, 3x6) |
+| `AppTheme` | AppTheme.h | App-wide 22-field color theme (Dark, Light, HighContrast static presets) |
+| `TitleBar` | TitleBar.h | Custom 32px title bar, handles drag + close |
+| `StatsData` | StatsData.h | Atomic wrappers for cross-thread stats sharing |
 
 ## UI Architecture
 
 ### State machine
-`enum AppState { LANDING, DASHBOARD }` — starts on landing page, transitions to dashboard on "Start Monitoring" click.
+`enum AppState { LANDING, DASHBOARD }` (defined in LandingPage.h) — starts on landing page, transitions to dashboard on "Start Monitoring" click.
 
-### Grid system (current: 4 columns × 6 rows)
+### Grid system (default: 4 columns × 6 rows)
 ```
 Cell = screen / grid dimensions
 Default tile layout:
@@ -158,15 +166,26 @@ Default tile layout:
   GPU:      (col=0, row=2, spanCols=2, spanRows=2)  — mid-left
   Network:  (col=2, row=2, spanCols=2, spanRows=2)  — mid-right
   Storage:  (col=0, row=4, spanCols=4, spanRows=2)  — bottom-full-width
-Total tiles: 5. Tile area height: screen height - 30px status bar.
+Total tiles: 5. Tile area: screen height - 30px status bar - 32px custom title bar.
+Tile bounds use `boundsYOffset` (set to TITLE_BAR_H=32) to shift grid into screen coordinates.
+Custom title bar drawn at top of undecorated window (FLAG_WINDOW_UNDECORATED).
 ```
 
+### Grid presets (F5 toggle)
+| Preset | Cols × Rows |
+|--------|-------------|
+| Default | 4 × 6 |
+| Compact | 3 × 4 |
+| Wide    | 5 × 6 |
+| Minimal | 2 × 3 |
+| Tall    | 3 × 6 |
+
 ### Tile system
-- `computeBounds()` — initial grid layout (skipped if already positioned and screen unchanged)
-- `handleDrag()` — mouse-driven drag (title bar) and resize (bottom-right grip). Off-screen clamping.
-- `computeSnapPreview()` — ghost preview computed from tile top-left edge (not center) so large tiles can reach row 0
-- `snapToGrid()` — on release: snaps position + auto-computes spanCols/spanRows from bounds/cell ratio
-- `resolveCollisions()` — scans ALL grid cells (0..gridRows × 0..gridCols) for empty space for displaced tiles
+- `computeBounds()` — initial grid layout (skipped if already positioned and screen unchanged). Adds `boundsYOffset` to Y.
+- `handleDrag()` — mouse-driven drag (title bar) and resize (bottom-right grip). Off-screen clamping respects `boundsYOffset`.
+- `computeSnapPreview()` — ghost preview computed from tile top-left edge (not center) so large tiles can reach row 0. Includes `boundsYOffset`.
+- `snapToGrid()` — on release: snaps position + auto-computes spanCols/spanRows from bounds/cell ratio. Includes `boundsYOffset` in target.
+- `resolveCollisions()` — scans ALL grid cells (0..gridRows × 0..gridCols) for empty space for displaced tiles. Respects per-tile `boundsYOffset`.
 - `drawFrame()` — drop shadow (offset 3x3), rounded rect (0.06f), title text (auto-shrink to fit), separator line, resize grip triangle
 
 ### Content per tile
@@ -184,10 +203,19 @@ Total tiles: 5. Tile area height: screen height - 30px status bar.
 - Gauge size: `min(contentWidth * 0.48f, contentH * 0.xx)` — tile-relative
 - Spacing between bars uses `bar.getTotalHeight()` (bar rectangle + label text height)
 
+### Design system
+- **AppTheme** is the canonical 22-field color theme. The Dark, Light, and HighContrast presets are static factory methods on AppTheme.
+- **BarWidget** and **GaugeWidget** each have their own `Theme` struct for backward compatibility. To create a widget theme from the app theme, use the static factory:
+  - `BarWidget::Theme::fromAppTheme(activeTheme)` — maps barBackground, barForeground, barForegroundDim, textPrimary
+  - `GaugeWidget::Theme::fromAppTheme(activeTheme)` — maps tileBg, gaugeArcBg, gaugeArcActive, gaugeText
+
 ### Overlays
-- **F2 Diagnostics:** Centered frosted panel (80% × 80% screen), scissor-clipped scroll region, accent-colored section headers with line dividers, elegantly-styled scrollbar, "Save" pill button.
-- **F3 Settings:** Right-aligned frosted panel (370px wide, 80% screen height), scissor-clipped scroll, rounded checkbox toggles with checkmarks, per-tile / per-disk / per-adapter sections with section headers.
+- **F2 Diagnostics:** `DiagnosticsOverlay()` — Centered frosted panel (80% × 80% screen), scissor-clipped scroll region, accent-colored section headers with line dividers, scrollbar, "Save" pill button.
+- **F3 Settings:** `SettingsOverlay()` — Right-aligned frosted panel (370px wide, 80% screen height), scissor-clipped scroll, rounded checkbox toggles with checkmarks, per-tile / per-disk / per-adapter sections with section headers.
 - **F4 CSV Logging:** Toggle on/off. Status shown in key-hint bar at window bottom. Writes to `perfmon_YYYYMMDD_HHMMSS.csv` in working directory.
+
+### Landing page
+`DrawLandingPage()` — Centered hero title + subtitle, 3 theme cards (Dark, Light, High Contrast) with drop shadows, hover glow, selected state with accent border, color swatch previews, "Start Monitoring" pill button. Returns true when button clicked. Layout scales with `cardScale = clamp(min(sw/1300, sh/850), 0.5, 2.0)`.
 
 ### Status bar
 - 30px bar at `y = screenH - 30` with `windowBg` background and separator line
@@ -195,12 +223,30 @@ Total tiles: 5. Tile area height: screen height - 30px status bar.
 - Right: "F4:Log [ON/OFF]" in accent color (ON) or muted (OFF)
 - FPS counter at top-right
 
-### Landing page
-- Centered hero title + subtitle
-- 3 theme cards (Dark, Light, High Contrast) with drop shadows, hover glow, selected state with accent border
-- Color swatch previews (rounded rectangles)
-- "Start Monitoring" pill button with shadow + hover highlight
-- Full layout scales with `cardScale = clamp(min(sw/1300, sh/850), 0.5, 2.0)`
+### Custom title bar
+- 32px themed bar at top (replaces default raylib window bar via FLAG_WINDOW_UNDECORATED)
+- Centered title "Performance Monitor", close button (X) on right, window drag via mouse delta
+- Present on both landing page and dashboard
+- Win32 subclass in TitleBarWin32.cpp handles WM_NCHITTEST→HTCAPTION for native window drag
+
+## Module API Signatures
+
+```cpp
+// LandingPage.h — also defines enum AppState { LANDING, DASHBOARD }
+bool DrawLandingPage(int sw, int sh, int titleSize, int fontSize,
+                     const AppTheme& theme, int& selectedThemeIndex,
+                     AppTheme& activeTheme, AppState& appState);
+
+// DiagnosticsOverlay.h
+void DrawDiagnosticsOverlay(int sw, int sh, int fontSize,
+                            const AppTheme& theme,
+                            StatsData& statsData, StatsCollector& stats);
+
+// SettingsOverlay.h
+void DrawSettingsOverlay(int sw, int sh, int fontSize,
+                         const AppTheme& theme,
+                         bool tileEnabled[], StatsCollector& stats);
+```
 
 ## Working with PDH
 
@@ -241,11 +287,11 @@ This is more reliable across Windows locales than `PdhEnumObjectItemsW`.
 2. Parse instance names from expanded paths (skip `_Total`)
 3. Create separate PDH query per GPU instance
 4. Store in `vector<GPUInstance>` with per-instance cached utilization
-5. Display as "GPU 1", "GPU 2" bars (displayName mapping exists but not yet wired to public API)
+5. Display as "GPU 1", "GPU 2" bars
 
 ## Thread Safety
-- **StatsData** (main.cpp): All members are `std::atomic<float/int>` — single-writer (updateStats thread), single-reader (renderLoop thread)
-- **StatsV1**: All PDH state accessed ONLY from updateStats thread via GET* methods
+- **StatsData** (StatsData.h): All members are `std::atomic<float/int>` — single-writer (updateStats thread), single-reader (renderLoop thread)
+- **StatsCollector**: All PDH state accessed ONLY from updateStats thread via GET* methods
 - No locks, no mutexes — pure atomics for cross-thread sharing
 
 ## Constraints

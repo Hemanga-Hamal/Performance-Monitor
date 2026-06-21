@@ -1,33 +1,44 @@
-#include "BarV1.h"
+#include "BarWidget.h"
 
-BarV1::Theme::Theme() 
-    : barBackgroundColor(DARKGRAY), barForegroundColor(GRAY), textColor(WHITE) {}
+BarWidget::Theme::Theme() 
+    : barBackgroundColor(DARKGRAY), barForegroundColor(GRAY),
+      barForegroundEndColor(LIGHTGRAY), textColor(WHITE) {}
 
-BarV1::Dimensions::Dimensions()
+BarWidget::Theme BarWidget::Theme::fromAppTheme(const ::AppTheme& t) {
+    Theme th;
+    th.barBackgroundColor = t.barBackground;
+    th.barForegroundColor = t.barForeground;
+    th.barForegroundEndColor = t.barForegroundDim;
+    th.textColor = t.textPrimary;
+    return th;
+}
+
+BarWidget::Dimensions::Dimensions()
     : barWidth(300), barHeight(40), scalingRatio(1.0f), textSizeRatio(0.7f),
       minSize(90), maxSize(350) {}
 
-BarV1::Config::Config()
+BarWidget::Config::Config()
     : value(0), maxValue(100), autoScale(true), screenSizeRatio(0.25f) {}
 
-BarV1::Config::Config(float val, float maxVal)
+BarWidget::Config::Config(float val, float maxVal)
     : value(val), maxValue(maxVal), autoScale(true), screenSizeRatio(0.25f) {}
 
-BarV1::BarV1(const Theme& theme, const Dimensions& dimensions, const Config& config) 
+BarWidget::BarWidget(const Theme& theme, const Dimensions& dimensions, const Config& config) 
     : theme(theme), dims(dimensions), config(config) {}
 
-float BarV1::calculateBarSize() const {
+float BarWidget::calculateBarSize() const {
+    float effectiveMin = std::min(static_cast<float>(dims.minSize), static_cast<float>(dims.maxSize));
     if (config.autoScale) {
         float screenSize = std::min(GetScreenWidth(), GetScreenHeight());
         float baseSize = screenSize * config.screenSizeRatio * dims.scalingRatio;
-        return std::clamp(baseSize, static_cast<float>(dims.minSize), static_cast<float>(dims.maxSize));
+        return std::clamp(baseSize, effectiveMin, static_cast<float>(dims.maxSize));
     }
     return std::clamp(dims.barWidth * dims.scalingRatio, 
-                     static_cast<float>(dims.minSize), 
+                     effectiveMin, 
                      static_cast<float>(dims.maxSize));
 }
 
-void BarV1::draw(Vector2 centre, const std::string& label, const std::string& numb) const {
+void BarWidget::draw(Vector2 centre, const std::string& label, const std::string& numb) const {
     float valuePercentage = std::clamp(config.value / config.maxValue, 0.0f, 1.0f);
     float barSize = calculateBarSize();
 
@@ -60,8 +71,9 @@ void BarV1::draw(Vector2 centre, const std::string& label, const std::string& nu
     if (valuePercentage > 0.001f) {
         float fillW = scaledWidth * valuePercentage;
         if (fillW < radius * 2.0f) fillW = radius * 2.0f;
-        Rectangle fillRect = {barX, barY, fillW, scaledHeight};
-        DrawRectangleRounded(fillRect, radius / scaledHeight, segments, theme.barForegroundColor);
+        DrawRectangleGradientH(static_cast<int>(barX), static_cast<int>(barY),
+                               static_cast<int>(fillW), static_cast<int>(scaledHeight),
+                               theme.barForegroundColor, theme.barForegroundEndColor);
     }
 
     float minFontSize = 10.0f;
@@ -73,19 +85,27 @@ void BarV1::draw(Vector2 centre, const std::string& label, const std::string& nu
     float textY = barY - fontSize - 6;
     if (textY < 4.0f) textY = 4.0f;
 
+    if (textY + fontSize > barY) {
+        textY = barY - fontSize;
+    }
+
     Vector2 numbSize = MeasureTextEx(GetFontDefault(), numb.c_str(), fontSize, 2.0f);
     float availLabelW = scaledWidth - numbSize.x - 16.0f;
 
     std::string displayLabel = label;
     float labelW = MeasureTextEx(GetFontDefault(), displayLabel.c_str(), fontSize, 2.0f).x;
+    labelTruncated = false;
     if (labelW > availLabelW && availLabelW > 20.0f) {
         while (displayLabel.size() > 4 && labelW > availLabelW) {
             displayLabel = displayLabel.substr(0, displayLabel.size() - 4) + "...";
             labelW = MeasureTextEx(GetFontDefault(), displayLabel.c_str(), fontSize, 2.0f).x;
         }
+        labelTruncated = true;
     }
 
     Vector2 labelPosition = { barX, textY };
+    lastBarRect = {barX, barY, scaledWidth, scaledHeight};
+    lastLabel = label;
     DrawTextPro(GetFontDefault(), displayLabel.c_str(), labelPosition,
                 Vector2{0, 0}, 0.0f, fontSize, 2.0f, theme.textColor);
 
@@ -94,12 +114,12 @@ void BarV1::draw(Vector2 centre, const std::string& label, const std::string& nu
                 Vector2{0, 0}, 0.0f, fontSize, 2.0f, theme.textColor);
 }
 
-void BarV1::setTheme(const Theme& newTheme) { theme = newTheme; }
-void BarV1::setDimensions(const Dimensions& newDimensions) { dims = newDimensions; }
-void BarV1::setConfig(const Config& newConfig) { config = newConfig; }
-void BarV1::setValue(float value) { config.value = value; }
+void BarWidget::setTheme(const Theme& newTheme) { theme = newTheme; }
+void BarWidget::setDimensions(const Dimensions& newDimensions) { dims = newDimensions; }
+void BarWidget::setConfig(const Config& newConfig) { config = newConfig; }
+void BarWidget::setValue(float value) { config.value = value; }
 
-void BarV1::drawInRect(Rectangle bounds, const std::string& label, const std::string& numb) const {
+void BarWidget::drawInRect(Rectangle bounds, const std::string& label, const std::string& numb) const {
     float valuePercentage = std::clamp(config.value / config.maxValue, 0.0f, 1.0f);
     float barWidth = bounds.width * 0.88f;
     float barHeight = bounds.height * 0.22f;
@@ -120,8 +140,9 @@ void BarV1::drawInRect(Rectangle bounds, const std::string& label, const std::st
     if (valuePercentage > 0.001f) {
         float fillW = barWidth * valuePercentage;
         if (fillW < radius * 2.0f) fillW = radius * 2.0f;
-        Rectangle fillRect = {barX, barY, fillW, barHeight};
-        DrawRectangleRounded(fillRect, radius / barHeight, segments, theme.barForegroundColor);
+        DrawRectangleGradientH(static_cast<int>(barX), static_cast<int>(barY),
+                               static_cast<int>(fillW), static_cast<int>(barHeight),
+                               theme.barForegroundColor, theme.barForegroundEndColor);
     }
 
     float minFontSize = 10.0f;
@@ -140,7 +161,7 @@ void BarV1::drawInRect(Rectangle bounds, const std::string& label, const std::st
                 Vector2{0, 0}, 0.0f, fontSize, 2.0f, theme.textColor);
 }
 
-float BarV1::getTotalHeight() const {
+float BarWidget::getTotalHeight() const {
     float barSize = calculateBarSize();
     float aspectRatio = static_cast<float>(dims.barHeight) / dims.barWidth;
     float baseHeight = barSize * aspectRatio;
@@ -150,9 +171,9 @@ float BarV1::getTotalHeight() const {
     return scaledHeight + fontSize + 10.0f;
 }
 
-const BarV1::Config& BarV1::getConfig() const { return config; }
+const BarWidget::Config& BarWidget::getConfig() const { return config; }
 
-float BarV1::getWidth() const {
+float BarWidget::getWidth() const {
     float barSize = calculateBarSize();
     float aspectRatio = static_cast<float>(dims.barHeight) / dims.barWidth;
     float maxAllowedHeight = GetScreenHeight() * 0.1f;
@@ -164,7 +185,7 @@ float BarV1::getWidth() const {
     return barSize;
 }
 
-float BarV1::getHeight() const {
+float BarWidget::getHeight() const {
     float barSize = calculateBarSize();
     float aspectRatio = static_cast<float>(dims.barHeight) / dims.barWidth;
     float height = barSize * aspectRatio;

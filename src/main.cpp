@@ -5,49 +5,36 @@
 
 #include <windows.h>
 #include "raylib.h"
-#include "StatsV1.h"
-#include "BarV1.h"
-#include "GaugeV1.h"
-#include "ThemeV1.h"
-#include "TileV1.h"
-#include "ConfigV1.h"
-#include "LoggerV1.h"
+#include "StatsCollector.h"
+#include "BarWidget.h"
+#include "GaugeWidget.h"
+#include "AppTheme.h"
+#include "ConfigManager.h"
+#include "CsvLogger.h"
+#include "TitleBar.h"
+#include "GridLayout.h"
+#include "StatsData.h"
+#include "DiagnosticsOverlay.h"
+#include "SettingsOverlay.h"
+#include "LandingPage.h"
 #include <cstdio>
+#include <cstring>
 #include <thread>
-#include <atomic>
 #include <string>
 #include <vector>
 
-using RaylibVector2 = ::Vector2;
-using RaylibColor = ::Color;
-
-struct StatsData {
-    std::atomic<float> CPU_Freq{0.0f};
-    std::atomic<float> CPU_Util{0.0f};
-    std::atomic<float> RAM_Util{0.0f};
-    std::atomic<float> Wifi_Send{0.0f};
-    std::atomic<float> Wifi_Recv{0.0f};
-    std::atomic<float> Ether_Send{0.0f};
-    std::atomic<float> Ether_Recv{0.0f};
-    std::atomic<float> GPU_Util[4]{};
-    std::atomic<int> GPUCount{0};
-    std::atomic<int> DiskCount{0};
-    std::atomic<float> DiskUtil[8]{};
-};
-
 StatsData statsData;
 std::atomic<bool> running(true);
-StatsV1 stats1;
+StatsCollector stats1;
 
-enum AppState { LANDING, DASHBOARD };
 AppState appState = LANDING;
-ThemeV1 activeTheme = ThemeV1::Dark();
+AppTheme activeTheme = AppTheme::Dark();
 int selectedThemeIndex = 0;
 bool showDiagnostics = false;
 bool showSettings = false;
 bool tileEnabled[5] = {true, true, true, true, true};
 bool loggingEnabled = false;
-LoggerV1 logger;
+CsvLogger logger;
 
 inline std::string formatValue(float value) {
     std::string s = std::to_string(value);
@@ -79,476 +66,82 @@ void updateStats() {
     }
 }
 
-void drawLandingPage(int sw, int sh, int titleSize, int fontSize) {
-    ClearBackground(activeTheme.landingBg);
-
-    int heroY = sh / 5;
-    const char* title = "Performance Monitor";
-    int titleFont = titleSize * 2;
-    int titleW = MeasureText(title, titleFont);
-    DrawText(title, (sw - titleW) / 2, heroY, titleFont, activeTheme.titleText);
-
-    const char* subtitle = "Select a theme to get started";
-    int subFont = static_cast<int>(fontSize * 0.95f);
-    int subW = MeasureText(subtitle, subFont);
-    DrawText(subtitle, (sw - subW) / 2, heroY + titleFont + 20, subFont, activeTheme.textSecondary);
-
-    const char* themeNames[] = {"Dark", "Light", "High Contrast"};
-    ThemeV1 themePreviews[] = {ThemeV1::Dark(), ThemeV1::Light(), ThemeV1::HighContrast()};
-
-    float cardScale = std::min(sw / 1300.0f, sh / 850.0f);
-    cardScale = std::clamp(cardScale, 0.5f, 2.0f);
-    int cardW = static_cast<int>(200 * cardScale);
-    int cardH = static_cast<int>(140 * cardScale);
-    int spacing = static_cast<int>(24 * cardScale);
-    int totalCardsW = cardW * 3 + spacing * 2;
-    int startX = (sw - totalCardsW) / 2;
-    int cardY = heroY + titleFont + 80;
-
-    for (int i = 0; i < 3; i++) {
-        Rectangle card = {static_cast<float>(startX + i * (cardW + spacing)),
-                          static_cast<float>(cardY), static_cast<float>(cardW), static_cast<float>(cardH)};
-        bool isSelected = (selectedThemeIndex == i);
-        bool isHovered = CheckCollisionPointRec(GetMousePosition(), card);
-
-        Rectangle shadow = {card.x + 4, card.y + 4, card.width, card.height};
-        DrawRectangleRounded(shadow, 0.12f, 12, activeTheme.tileShadow);
-
-        DrawRectangleRounded(card, 0.12f, 12, themePreviews[i].tileBg);
-
-        Color borderCol = isSelected ? activeTheme.accentColor :
-                          (isHovered ? activeTheme.accentHover : themePreviews[i].tileBorder);
-        float borderW = isSelected ? 2.5f : 1.0f;
-        DrawRectangleRoundedLinesEx(card, 0.12f, 12, borderW, borderCol);
-
-        if (isSelected) {
-            Rectangle glow = {card.x - 1, card.y - 1, card.width + 2, card.height + 2};
-            DrawRectangleRoundedLinesEx(glow, 0.12f, 12, 3.0f,
-                {activeTheme.accentColor.r, activeTheme.accentColor.g, activeTheme.accentColor.b, 40});
-        }
-
-        int tf = static_cast<int>(fontSize * cardScale * 0.9f);
-        if (tf < 11) tf = 11;
-        DrawText(themeNames[i], static_cast<int>(card.x + 18 * cardScale),
-                 static_cast<int>(card.y + 16 * cardScale), tf, themePreviews[i].titleText);
-
-        float swatchW = 44 * cardScale;
-        float swatchH = 32 * cardScale;
-        float swatchGap = 12 * cardScale;
-        float sy = card.y + 50 * cardScale;
-        float sx = card.x + 18 * cardScale;
-        Rectangle s1 = {sx, sy, swatchW, swatchH};
-        Rectangle s2 = {sx + swatchW + swatchGap, sy, swatchW, swatchH};
-        Rectangle s3 = {sx + (swatchW + swatchGap) * 2, sy, swatchW, swatchH};
-        DrawRectangleRounded(s1, 0.2f, 8, themePreviews[i].barForeground);
-        DrawRectangleRounded(s2, 0.2f, 8, themePreviews[i].gaugeArcActive);
-        DrawRectangleRounded(s3, 0.2f, 8, themePreviews[i].barBackground);
-
-        if (isHovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            selectedThemeIndex = i;
-            activeTheme = themePreviews[i];
-        }
-    }
-
-    int btnW = static_cast<int>(220 * cardScale);
-    int btnH = static_cast<int>(52 * cardScale);
-    if (btnH < 34) btnH = 34;
-    Rectangle startBtn = {static_cast<float>((sw - btnW) / 2),
-                          static_cast<float>(sh - sh / 4),
-                          static_cast<float>(btnW), static_cast<float>(btnH)};
-    bool btnHover = CheckCollisionPointRec(GetMousePosition(), startBtn);
-    Color btnColor = btnHover ? activeTheme.accentHover : activeTheme.accentColor;
-
-    Rectangle btnShadow = {startBtn.x + 2, startBtn.y + 3, startBtn.width, startBtn.height};
-    DrawRectangleRounded(btnShadow, 0.25f, 12, {0, 0, 0, 50});
-    DrawRectangleRounded(startBtn, 0.25f, 12, btnColor);
-
-    const char* btnText = "Start Monitoring";
-    int btnFont = static_cast<int>(fontSize * cardScale * 0.95f);
-    if (btnFont < 12) btnFont = 12;
-    int btnTextW = MeasureText(btnText, btnFont);
-    DrawText(btnText, static_cast<int>(startBtn.x + (btnW - btnTextW) / 2),
-             static_cast<int>(startBtn.y + (btnH - btnFont) / 2), btnFont,
-             activeTheme.windowBg);
-
-    if (btnHover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        appState = DASHBOARD;
-    }
-}
-
-void drawDiagnosticsOverlay(int sw, int sh, int fontSize) {
-    static float scrollOffset = 0.0f;
-    int panelW = sw * 4 / 5, panelH = sh * 4 / 5;
-    if (panelW < 420) panelW = 420;
-    if (panelH < 320) panelH = 320;
-    Rectangle panel = {static_cast<float>((sw - panelW) / 2), static_cast<float>((sh - panelH) / 2),
-                       static_cast<float>(panelW), static_cast<float>(panelH)};
-
-    Rectangle shadow = {panel.x + 4, panel.y + 6, panel.width, panel.height};
-    DrawRectangleRounded(shadow, 0.08f, 16, {0, 0, 0, 80});
-    DrawRectangleRounded(panel, 0.08f, 16, activeTheme.panelOverlay);
-    DrawRectangleRoundedLinesEx(panel, 0.08f, 16, 1.0f, activeTheme.tileBorder);
-
-    int smallFont = std::max(fontSize - 3, 10);
-    int sectionFont = std::max(fontSize - 1, 12);
-    int x = static_cast<int>(panel.x + 20);
-    int visibleTop = static_cast<int>(panel.y + 12);
-    int visibleBot = static_cast<int>(panel.y + panelH - 12);
-
-    DrawText("Diagnostics", x, visibleTop, fontSize, activeTheme.titleText);
-
-    int saveW = std::min(100, panelW - 200);
-    if (saveW > 55) {
-        Rectangle saveBtn = {panel.x + panelW - saveW - 14, panel.y + 10, static_cast<float>(saveW), 26};
-        bool saveHover = CheckCollisionPointRec(GetMousePosition(), saveBtn);
-        Color sbBg = saveHover ? activeTheme.accentColor : activeTheme.toggleInactive;
-        DrawRectangleRounded(saveBtn, 0.3f, 8, sbBg);
-        const char* saveText = "Save";
-        int tw = MeasureText(saveText, smallFont);
-        DrawText(saveText, static_cast<int>(saveBtn.x + (saveW - tw) / 2),
-                 static_cast<int>(saveBtn.y + 5), smallFont, WHITE);
-        if (saveHover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            FILE* f = nullptr;
-            _wfopen_s(&f, L"diagnostics.txt", L"w, ccs=UTF-8");
-            if (f) {
-                fwprintf(f, L"=== Performance Monitor Diagnostics ===\n\n");
-                fwprintf(f, L"[CPU]\n");
-                fwprintf(f, L"  Model: %hs\n", stats1.GETCPUModel());
-                fwprintf(f, L"  Frequency: %.0f MHz\n", stats1.GETCPUFrequency());
-                fwprintf(f, L"  Utilization: %.1f %%\n", stats1.GETCPUtilization());
-                fwprintf(f, L"\n[RAM]\n");
-                fwprintf(f, L"  Total: %.1f GB\n", stats1.GETRAMTotal());
-                fwprintf(f, L"  Used: %.1f GB\n", stats1.GETRAMUsed());
-                fwprintf(f, L"  Utilization: %.1f %%\n", stats1.GETRAMUtilization());
-                fwprintf(f, L"\n[GPU]\n");
-                fwprintf(f, L"  Model: %hs\n", stats1.GETGPUModel());
-                int gc = stats1.GETGPUCount();
-                for (int i = 0; i < gc; i++) {
-                    char nbuf[128];
-                    WideCharToMultiByte(CP_UTF8, 0, stats1.GETGPUName(i), -1, nbuf, sizeof(nbuf), nullptr, nullptr);
-                    fwprintf(f, L"  %hs: %.1f %%\n", nbuf, stats1.GETGPUUtilization(i));
-                }
-                fwprintf(f, L"\n[Disks]\n");
-                for (int i = 0; i < stats1.GETDiskCount(); i++) {
-                    char nbuf[64];
-                    WideCharToMultiByte(CP_UTF8, 0, stats1.GETDiskName(i), -1, nbuf, sizeof(nbuf), nullptr, nullptr);
-                    fwprintf(f, L"  %hs: %.1f GB / %.1f GB (%.1f %%)\n",
-                             nbuf, stats1.GETDiskUsed(i), stats1.GETDiskTotal(i), stats1.GETDiskUtilization(i));
-                }
-                fwprintf(f, L"\n[Network]\n");
-                const auto& adps = stats1.GetAdapters();
-                for (const auto& a : adps) {
-                    char nbuf[128];
-                    WideCharToMultiByte(CP_UTF8, 0, a.name.c_str(), -1, nbuf, sizeof(nbuf), nullptr, nullptr);
-                    fwprintf(f, L"  %hs\n", nbuf);
-                }
-                fwprintf(f, L"\n");
-                fclose(f);
-            }
-        }
-    }
-
-    float wheel = GetMouseWheelMove();
-    if (CheckCollisionPointRec(GetMousePosition(), panel)) {
-        scrollOffset += wheel * 30.0f;
-    }
-    int y = visibleTop + fontSize + 20 + static_cast<int>(scrollOffset);
-
-    int clipY = static_cast<int>(panel.y + 48);
-    int clipH = static_cast<int>(panelH - 56);
-    if (clipH < 0) clipH = 0;
-    BeginScissorMode(static_cast<int>(panel.x + 2), clipY, panelW - 4, clipH);
-
-    auto drawSection = [&](const char* title) {
-        if (y > visibleTop - 20 && y < visibleBot + 20) {
-            float secX = panel.x + 20;
-            DrawText(title, static_cast<int>(secX), y, sectionFont, activeTheme.accentColor);
-            float lineW = std::min(panelW - 100.0f, 400.0f);
-            DrawLineEx({secX + MeasureText(title, sectionFont) + 10, y + sectionFont / 2.0f},
-                       {secX + lineW, y + sectionFont / 2.0f},
-                       1.0f, activeTheme.lineColor);
-        }
-        y += sectionFont + 8;
-    };
-
-    auto drawLine = [&](const char* label, const char* value) {
-        if (y > visibleTop - 20 && y < visibleBot + 20) {
-            float lx = panel.x + 28;
-            DrawText(label, static_cast<int>(lx), y, smallFont, activeTheme.textPrimary);
-            int lw = MeasureText(label, smallFont);
-            float vx = lx + lw + 10;
-            float maxVW = panel.x + panelW - vx - 20.0f;
-            int vw = MeasureText(value, smallFont);
-            if (vw > maxVW && maxVW > 30.0f) {
-                int smallerVFont = smallFont;
-                while (smallerVFont > 8) {
-                    smallerVFont--;
-                    vw = MeasureText(value, smallerVFont);
-                    if (vw <= maxVW) break;
-                }
-                DrawText(value, static_cast<int>(vx), y, smallerVFont, activeTheme.textSecondary);
-            } else {
-                DrawText(value, static_cast<int>(vx), y, smallFont, activeTheme.textSecondary);
-            }
-        }
-        y += smallFont + 4;
-    };
-
-    drawSection("CPU");
-    {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "%s", stats1.GETCPUModel());
-        drawLine("Model:", buf);
-        snprintf(buf, sizeof(buf), "%.0f MHz", stats1.GETCPUFrequency());
-        drawLine("Frequency:", buf);
-        snprintf(buf, sizeof(buf), "%.1f %%", stats1.GETCPUtilization());
-        drawLine("Utilization:", buf);
-    }
-    y += 6;
-
-    drawSection("RAM");
-    {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "%.1f GB", stats1.GETRAMTotal());
-        drawLine("Total:", buf);
-        snprintf(buf, sizeof(buf), "%.1f GB", stats1.GETRAMUsed());
-        drawLine("Used:", buf);
-        snprintf(buf, sizeof(buf), "%.1f %%", stats1.GETRAMUtilization());
-        drawLine("Utilization:", buf);
-    }
-    y += 6;
-
-    drawSection("GPU");
-    {
-        char buf[256];
-        if (stats1.IsGPUAvailable()) {
-            snprintf(buf, sizeof(buf), "%s", stats1.GETGPUModel());
-            drawLine("Model:", buf);
-            int gpuCount = stats1.GETGPUCount();
-            for (int i = 0; i < gpuCount; i++) {
-                char wbuf[128], lineBuf[256];
-                WideCharToMultiByte(CP_UTF8, 0, stats1.GETGPUName(i), -1, wbuf, sizeof(wbuf), nullptr, nullptr);
-                snprintf(lineBuf, sizeof(lineBuf), "%.1f %%", stats1.GETGPUUtilization(i));
-                drawLine(wbuf, lineBuf);
-            }
-        } else {
-            drawLine("Status:", "Not detected");
-        }
-    }
-    y += 6;
-
-    drawSection("Disks");
-    for (int i = 0; i < stats1.GETDiskCount(); i++) {
-        if (y > visibleBot) break;
-        char nameBuf[64], lineBuf[256];
-        WideCharToMultiByte(CP_UTF8, 0, stats1.GETDiskName(i), -1, nameBuf, sizeof(nameBuf), nullptr, nullptr);
-        snprintf(lineBuf, sizeof(lineBuf), "%.1f GB total, %.1f GB used, %.1f %%",
-                 stats1.GETDiskTotal(i), stats1.GETDiskUsed(i), stats1.GETDiskUtilization(i));
-        drawLine(nameBuf, lineBuf);
-    }
-    y += 6;
-
-    drawSection("Network");
-    const auto& adapters = stats1.GetDiscoveredAdapters();
-    if (adapters.empty()) {
-        drawLine("Status:", "None detected");
-    } else {
-        for (const auto& a : adapters) {
-            if (y > visibleBot) break;
-            char wbuf[256];
-            WideCharToMultiByte(CP_UTF8, 0, a.c_str(), -1, wbuf, sizeof(wbuf), nullptr, nullptr);
-            drawLine("Adapter:", wbuf);
-        }
-    }
-
-    int totalH = y - static_cast<int>(scrollOffset) - visibleTop - fontSize - 20;
-    if (totalH > panelH) {
-        float barH = panelH * panelH / static_cast<float>(totalH);
-        float barY = visibleTop + 48.0f + (-scrollOffset / totalH) * (panelH - 56.0f);
-        Rectangle sb = {panel.x + panelW - 8, barY, 4, barH};
-        DrawRectangleRounded(sb, 0.5f, 6, activeTheme.scrollbarColor);
-    }
-    EndScissorMode();
-}
-
-void drawSettingsOverlay(int sw, int sh, int fontSize) {
-    static float settingsScroll = 0.0f;
-    int panelW = 370, panelH = sh * 4 / 5;
-    if (panelH < 320) panelH = 320;
-    Rectangle panel = {static_cast<float>(sw - panelW - 20), 50.0f,
-                       static_cast<float>(panelW), static_cast<float>(panelH)};
-
-    Rectangle shadow = {panel.x + 3, panel.y + 5, panel.width, panel.height};
-    DrawRectangleRounded(shadow, 0.08f, 16, {0, 0, 0, 70});
-    DrawRectangleRounded(panel, 0.08f, 16, activeTheme.panelOverlay);
-    DrawRectangleRoundedLinesEx(panel, 0.08f, 16, 1.0f, activeTheme.tileBorder);
-    DrawText("Settings", static_cast<int>(panel.x + 20), static_cast<int>(panel.y + 14), fontSize, activeTheme.titleText);
-
-    float wheel = GetMouseWheelMove();
-    if (CheckCollisionPointRec(GetMousePosition(), panel)) {
-        settingsScroll += wheel * 30.0f;
-    }
-
-    int smallFont = std::max(fontSize - 2, 10);
-    int visibleTop = static_cast<int>(panel.y + 12);
-    int visibleBot = static_cast<int>(panel.y + panelH - 12);
-    int yBase = static_cast<int>(panel.y + 44 + settingsScroll);
-
-    int clipY = static_cast<int>(panel.y + 42);
-    int clipH = static_cast<int>(panelH - 50);
-    if (clipH < 0) clipH = 0;
-    BeginScissorMode(static_cast<int>(panel.x + 2), clipY, panelW - 4, clipH);
-
-    auto drawToggle = [&](const char* label, const char* info, bool& enabled, int& y) {
-        float cbX = panel.x + 18;
-        Rectangle cb = {cbX, static_cast<float>(y + 1), 20, 20};
-        if (y + 42 > visibleTop && y < visibleBot) {
-            Color bg = enabled ? activeTheme.toggleActive : activeTheme.toggleInactive;
-            DrawRectangleRounded(cb, 0.25f, 8, bg);
-            DrawRectangleRoundedLinesEx(cb, 0.25f, 8, 1.0f, activeTheme.tileBorder);
-            if (enabled) {
-                const char* check = "\xE2\x9C\x93";
-                int cw = MeasureText(check, smallFont);
-                DrawText(check, static_cast<int>(cb.x + (20 - cw) / 2), y + 2, smallFont, WHITE);
-            }
-            float lx = cbX + 30;
-            float maxTextW = panel.x + panelW - lx - 20.0f;
-            DrawText(label, static_cast<int>(lx), y, smallFont, activeTheme.textPrimary);
-            if (info[0]) {
-                int infoFont = smallFont - 3;
-                if (infoFont < 8) infoFont = 8;
-                int iw = MeasureText(info, infoFont);
-                if (iw > maxTextW && maxTextW > 20.0f) {
-                    while (infoFont > 8) { infoFont--; iw = MeasureText(info, infoFont); if (iw <= maxTextW) break; }
-                }
-                DrawText(info, static_cast<int>(lx), y + smallFont + 3, infoFont, activeTheme.textSecondary);
-            }
-        }
-        y += smallFont * 2 + 14;
-        return CheckCollisionPointRec(GetMousePosition(), cb) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
-    };
-
-    int y = yBase;
-
-    {
-        char cpuInfo[128] = "";
-        snprintf(cpuInfo, sizeof(cpuInfo), "%s", stats1.GETCPUModel());
-        if (drawToggle("CPU Tile", cpuInfo, tileEnabled[0], y)) tileEnabled[0] = !tileEnabled[0];
-
-        char ramInfo[64] = "";
-        snprintf(ramInfo, sizeof(ramInfo), "%.1f GB total", stats1.GETRAMTotal());
-        if (drawToggle("RAM Tile", ramInfo, tileEnabled[1], y)) tileEnabled[1] = !tileEnabled[1];
-
-        char gpuInfo[128] = "";
-        if (stats1.IsGPUAvailable()) {
-            int gpuCount = stats1.GETGPUCount();
-            if (gpuCount > 1) {
-                snprintf(gpuInfo, sizeof(gpuInfo), "%s (%d GPUs)", stats1.GETGPUModel(), gpuCount);
-            } else {
-                char gbuf[64];
-                WideCharToMultiByte(CP_UTF8, 0, stats1.GETGPUName(0), -1, gbuf, sizeof(gbuf), nullptr, nullptr);
-                snprintf(gpuInfo, sizeof(gpuInfo), "%s (%s)", stats1.GETGPUModel(), gbuf);
-            }
-        } else {
-            snprintf(gpuInfo, sizeof(gpuInfo), "Not detected");
-        }
-        if (drawToggle("GPU Tile", gpuInfo, tileEnabled[2], y)) tileEnabled[2] = !tileEnabled[2];
-
-        if (drawToggle("Network Tile", "WiFi + Ethernet", tileEnabled[3], y)) tileEnabled[3] = !tileEnabled[3];
-
-        char diskInfo[64] = "";
-        int dc = stats1.GETDiskCount();
-        snprintf(diskInfo, sizeof(diskInfo), "%d drive(s)", dc);
-        if (drawToggle("Storage Tile", diskInfo, tileEnabled[4], y)) tileEnabled[4] = !tileEnabled[4];
-    }
-
-    y += 10;
-
-    const auto& disks = stats1.GetDisks();
-    if (!disks.empty()) {
-        float secX = panel.x + 18;
-        if (y + smallFont + 8 > visibleTop && y < visibleBot)
-            DrawText("Disks", static_cast<int>(secX), y, smallFont, activeTheme.accentColor);
-        y += smallFont + 8;
-        for (size_t i = 0; i < disks.size(); i++) {
-            char label[64], info[128];
-            WideCharToMultiByte(CP_UTF8, 0, disks[i].name.c_str(), -1, label, sizeof(label), nullptr, nullptr);
-            snprintf(info, sizeof(info), "%.1f GB total", disks[i].totalGB);
-            bool enabled = disks[i].enabled;
-            if (drawToggle(label, info, enabled, y)) {
-                stats1.SetDiskEnabled(static_cast<int>(i), !enabled);
-            }
-        }
-        y += 10;
-    }
-
-    const auto& adapters = stats1.GetAdapters();
-    if (!adapters.empty()) {
-        float secX = panel.x + 18;
-        if (y + smallFont + 8 > visibleTop && y < visibleBot)
-            DrawText("Network", static_cast<int>(secX), y, smallFont, activeTheme.accentColor);
-        y += smallFont + 8;
-        for (size_t i = 0; i < adapters.size(); i++) {
-            char label[128], info[64];
-            WideCharToMultiByte(CP_UTF8, 0, adapters[i].name.c_str(), -1, label, sizeof(label), nullptr, nullptr);
-            snprintf(info, sizeof(info), "%s", adapters[i].isWiFi ? "WiFi" : (adapters[i].isEthernet ? "Ethernet" : "Other"));
-            bool enabled = adapters[i].enabled;
-            if (drawToggle(label, info, enabled, y)) {
-                stats1.SetAdapterEnabled(static_cast<int>(i), !enabled);
-            }
-        }
-    }
-
-    EndScissorMode();
-}
+extern "C" void InitTitleBarNative();
 
 void renderLoop() {
-    ConfigV1 configManager;
-    (void)configManager.load();
+    ConfigManager configManager;
+    bool configLoaded = configManager.load();
+    if (!configLoaded) {
+        HKEY hKey;
+        if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                          0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            DWORD appsUseLightTheme = 0;
+            DWORD size = sizeof(appsUseLightTheme);
+            if (RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr,
+                                 reinterpret_cast<LPBYTE>(&appsUseLightTheme), &size) == ERROR_SUCCESS) {
+                if (appsUseLightTheme) {
+                    AppConfig ac = configManager.get();
+                    ac.themeIndex = 1;
+                    configManager.set(ac);
+                }
+            }
+            RegCloseKey(hKey);
+        }
+    }
     const AppConfig& appCfg = configManager.get();
 
     int initW = appCfg.windowW > 0 ? appCfg.windowW : 1200;
     int initH = appCfg.windowH > 0 ? appCfg.windowH : 800;
     InitWindow(initW, initH, "Performance Monitor");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetWindowState(FLAG_WINDOW_UNDECORATED);
     SetWindowMinSize(500, 400);
     SetTargetFPS(30);
+    InitTitleBarNative();
 
     if (appCfg.themeIndex >= 0 && appCfg.themeIndex <= 2) {
         selectedThemeIndex = appCfg.themeIndex;
-        const ThemeV1 themes[] = {ThemeV1::Dark(), ThemeV1::Light(), ThemeV1::HighContrast()};
+        const AppTheme themes[] = {AppTheme::Dark(), AppTheme::Light(), AppTheme::HighContrast()};
         activeTheme = themes[appCfg.themeIndex];
     }
     for (int i = 0; i < 5; i++) {
         tileEnabled[i] = appCfg.tileEnabled[i];
     }
+    for (int i = 0; i < 8; i++) {
+        stats1.SetDiskEnabled(i, appCfg.diskEnabled[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        stats1.SetAdapterEnabled(i, appCfg.adapterEnabled[i]);
+    }
     if (appCfg.windowX != -1 && appCfg.windowY != -1) {
         SetWindowPosition(appCfg.windowX, appCfg.windowY);
     }
 
-    GaugeV1::Theme gaugeTheme;
-    GaugeV1::Dimensions gaugeDims;
-    GaugeV1 gaugeCPU(gaugeTheme, gaugeDims, GaugeV1::Config::ConfigArc());
-    GaugeV1 gaugeRAM(gaugeTheme, gaugeDims, GaugeV1::Config::ConfigQuarter());
+    GaugeWidget::Theme gaugeTheme = GaugeWidget::Theme::fromAppTheme(activeTheme);
+    GaugeWidget::Dimensions gaugeDims;
+    GaugeWidget gaugeCPU(gaugeTheme, gaugeDims, GaugeWidget::Config::ConfigArc());
+    GaugeWidget gaugeRAM(gaugeTheme, gaugeDims, GaugeWidget::Config::ConfigQuarter());
 
-    BarV1::Theme barTheme;
-    BarV1::Dimensions barDims;
-    BarV1::Config barCfg;
-    std::vector<BarV1> bars;
+    BarWidget::Theme barTheme = BarWidget::Theme::fromAppTheme(activeTheme);
+    BarWidget::Dimensions barDims;
+    BarWidget::Config barCfg;
+    std::vector<BarWidget> bars;
     for (int i = 0; i < 16; i++) bars.emplace_back(barTheme, barDims, barCfg);
 
-    std::vector<TileV1> tiles;
-    tiles.push_back(TileV1({0, 0, 2, 2, "CPU"}));
-    tiles.push_back(TileV1({2, 0, 2, 2, "RAM"}));
-    tiles.push_back(TileV1({0, 2, 2, 2, "GPU"}));
-    tiles.push_back(TileV1({2, 2, 2, 2, "Network"}));
-    tiles.push_back(TileV1({0, 4, 4, 2, "Storage"}));
-    const int gridCols = 4;
-    const int gridRows = 6;
+    GridLayout grid;
+    grid.offsetY = static_cast<float>(TITLE_BAR_H + 2 + 28);
+    grid.tiles.push_back({0, 0, 2, 2, "CPU"});
+    grid.tiles.push_back({2, 0, 2, 2, "RAM"});
+    grid.tiles.push_back({0, 2, 2, 1, "GPU"});
+    grid.tiles.push_back({2, 2, 2, 1, "Network"});
+    grid.tiles.push_back({0, 3, 4, 1, "Storage"});
 
-    const float baseHeight = 800.0f;
+    int dragSourceIdx = -1;
+    bool gridDragActive = false;
 
-    while (!WindowShouldClose()) {
+    bool windowShouldClose = false;
+    while (!WindowShouldClose() && !windowShouldClose) {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
         float hScale = std::clamp(sh / 800.0f, 0.6f, 1.8f);
@@ -557,7 +150,12 @@ void renderLoop() {
 
         if (appState == LANDING) {
             BeginDrawing();
-            drawLandingPage(sw, sh, titleSize, fontSize);
+            ClearBackground(activeTheme.landingBg);
+            {
+                TitleBar titleBar;
+                if (titleBar.draw(sw, activeTheme, fontSize)) windowShouldClose = true;
+            }
+            DrawLandingPage(sw, sh, titleSize, fontSize, activeTheme, selectedThemeIndex, activeTheme, appState);
             EndDrawing();
             continue;
         }
@@ -575,15 +173,62 @@ void renderLoop() {
             }
         }
 
-        int tileAreaH = sh - 30;
-        for (auto& t : tiles) {
-            t.computeBounds(sw, tileAreaH, gridCols, gridRows);
-        }
+        gaugeTheme = GaugeWidget::Theme::fromAppTheme(activeTheme);
+        barTheme = BarWidget::Theme::fromAppTheme(activeTheme);
+        gaugeCPU.setTheme(gaugeTheme);
+        gaugeRAM.setTheme(gaugeTheme);
+        for (auto& b : bars) b.setTheme(barTheme);
+
+        int tileAreaH = sh - 30 - static_cast<int>(grid.offsetY);
 
         Vector2 mousePos = GetMousePosition();
-        for (auto& t : tiles) {
-            t.handleDrag(mousePos, sw, tileAreaH, tiles, gridCols, gridRows);
+
+        GridLayout::PlacementResult placementPreview;
+        bool hasPreview = false;
+
+        if (!gridDragActive) {
+            for (size_t i = 0; i < grid.tiles.size(); i++) {
+                if (!tileEnabled[i]) continue;
+                const auto& t = grid.tiles[i];
+                Rectangle tb = t.titleBar();
+                if (CheckCollisionPointRec(mousePos, tb) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    if (!(mousePos.y > tb.y && mousePos.y < tb.y + tb.height &&
+                          mousePos.x > tb.x + t.bounds.width - 24.0f)) {
+                        dragSourceIdx = static_cast<int>(i);
+                        gridDragActive = true;
+                    }
+                    break;
+                }
+            }
         }
+
+        if (gridDragActive) {
+            float cellW = static_cast<float>(sw) / GRID_COLS;
+            float cellH = static_cast<float>(tileAreaH) / GRID_ROWS;
+            int targetCol = static_cast<int>(mousePos.x / cellW);
+            int targetRow = static_cast<int>((mousePos.y - grid.offsetY) / cellH);
+            if (targetCol < 0) targetCol = 0;
+            if (targetCol + grid.tiles[dragSourceIdx].spanCols > GRID_COLS)
+                targetCol = GRID_COLS - grid.tiles[dragSourceIdx].spanCols;
+            if (targetRow < 0) targetRow = 0;
+            if (targetRow + grid.tiles[dragSourceIdx].spanRows > GRID_ROWS)
+                targetRow = GRID_ROWS - grid.tiles[dragSourceIdx].spanRows;
+
+            placementPreview = grid.computePlacement(dragSourceIdx, targetCol, targetRow);
+            hasPreview = placementPreview.valid;
+
+            if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+                if (hasPreview) {
+                    grid.tryPlace(dragSourceIdx, targetCol, targetRow);
+                }
+                dragSourceIdx = -1;
+                hasPreview = false;
+                placementPreview = {};
+                gridDragActive = false;
+            }
+        }
+
+        grid.layout(sw, tileAreaH);
 
         StatsData local;
         local.CPU_Freq = statsData.CPU_Freq.load();
@@ -622,92 +267,195 @@ void renderLoop() {
         BeginDrawing();
         ClearBackground(activeTheme.windowBg);
 
-        for (auto& tile : tiles) {
-            int tileIdx = -1;
-            if (tile.config.title == "CPU") tileIdx = 0;
-            else if (tile.config.title == "RAM") tileIdx = 1;
-            else if (tile.config.title == "GPU") tileIdx = 2;
-            else if (tile.config.title == "Network") tileIdx = 3;
-            else if (tile.config.title == "Storage") tileIdx = 4;
+        {
+            TitleBar titleBar;
+            if (titleBar.draw(sw, activeTheme, fontSize)) windowShouldClose = true;
+        }
 
-            if (!tileEnabled[tileIdx]) continue;
+        for (size_t ti = 0; ti < grid.tiles.size(); ti++) {
+            if (!tileEnabled[ti]) continue;
+            const auto& tile = grid.tiles[ti];
+            const Rectangle& b = tile.bounds;
+            if (b.width < 20.0f) continue;
 
-            float tileTitleSize = std::min(tile.bounds.width * 0.08f, tile.bounds.height * 0.09f);
+            constexpr float REF_W = 400.0f;
+            constexpr float REF_H = 300.0f;
+            float contentScale = std::min(b.width / REF_W, b.height / REF_H);
+            if (contentScale < 0.55f) contentScale = 0.55f;
+            if (contentScale > 2.0f) contentScale = 2.0f;
+
+            float tileTitleSize = 18.0f * contentScale;
             if (tileTitleSize < 10.0f) tileTitleSize = 10.0f;
             if (tileTitleSize > 24.0f) tileTitleSize = 24.0f;
-            tile.drawFrame(activeTheme, tileTitleSize);
 
-            if (tile.config.title == "CPU") {
-                Rectangle tb = tile.titleBar();
-                float contentTop = tb.y + tb.height;
-                float contentBot = tile.bounds.y + tile.bounds.height - 8.0f;
-                float contentH = contentBot - contentTop;
-                float cw = tile.contentWidth();
-                float midX = tile.bounds.x + tile.bounds.width / 2;
+            Rectangle shadowRect = {b.x + 3, b.y + 3, b.width, b.height};
+            DrawRectangleRounded(shadowRect, 0.06f, 12, activeTheme.tileShadow);
+            DrawRectangleRounded(b, 0.06f, 12, activeTheme.tileBg);
+            DrawRectangleRoundedLinesEx(b, 0.06f, 12, 1.0f, activeTheme.tileBorder);
 
+            Rectangle tb = tile.titleBar();
+            float clampedFont = tileTitleSize;
+            float usableH = tb.height * 0.7f;
+            if (clampedFont > usableH) clampedFont = usableH;
+            if (clampedFont < 8.0f) clampedFont = 8.0f;
+            float gripPad = 22.0f;
+            float maxTextW = b.width - 24.0f - gripPad;
+            if (maxTextW < 20.0f) maxTextW = 20.0f;
+
+            int textW = MeasureText(tile.title.c_str(), static_cast<int>(clampedFont));
+            if (textW > maxTextW) {
+                while (clampedFont > 8.0f) {
+                    clampedFont -= 1.0f;
+                    textW = MeasureText(tile.title.c_str(), static_cast<int>(clampedFont));
+                    if (textW <= maxTextW) break;
+                }
+            }
+            int textX = static_cast<int>(b.x + (b.width - textW) / 2);
+            if (textX < static_cast<int>(b.x + 4)) textX = static_cast<int>(b.x + 4);
+            int textY = static_cast<int>(b.y + (tb.height - clampedFont) / 2);
+            DrawText(tile.title.c_str(), textX, textY, static_cast<int>(clampedFont), activeTheme.titleText);
+
+            float lineY = tb.y + tb.height;
+            DrawLineEx({b.x + b.width * 0.12f, lineY}, {b.x + b.width * 0.88f, lineY}, 1.0f, activeTheme.lineColor);
+
+            float contentTop = b.y + tb.height + 6.0f;
+            float contentBot = b.y + b.height - 8.0f;
+            float contentH = contentBot - contentTop;
+            if (contentH < 10.0f) continue;
+            float cw = b.width * 0.88f;
+            float midX = b.x + b.width / 2;
+
+            switch (ti) {
+            case 0: {
+                bool compact = (contentScale < 0.65f || contentH < 100.0f);
                 const char* cpuModel = stats1.GETCPUModel();
-                float modelFont = std::min(tile.bounds.width * 0.04f, 16.0f);
+                float modelFont = std::min(14.0f * contentScale, 16.0f);
                 if (modelFont < 8.0f) modelFont = 8.0f;
                 bool hasModel = cpuModel[0] != '\0';
-                if (hasModel) {
-                    int mw = MeasureText(cpuModel, static_cast<int>(modelFont));
-                    float maxW = tile.bounds.width - 16.0f;
-                    float useFont = modelFont;
-                    while (useFont > 7.0f && mw > maxW) { useFont -= 0.5f; mw = MeasureText(cpuModel, static_cast<int>(useFont)); }
-                    DrawText(cpuModel, static_cast<int>(midX - mw / 2),
-                             static_cast<int>(contentTop + 4.0f), static_cast<int>(useFont), activeTheme.textSecondary);
+
+                if (compact) {
+                    float leftW = b.width * 0.48f;
+                    float gaugeSize = std::min(180.0f * contentScale, contentH * 0.85f);
+                    if (gaugeSize < 40.0f) gaugeSize = 40.0f;
+                    if (gaugeSize > leftW * 0.95f) gaugeSize = leftW * 0.95f;
+                    gaugeCPU.setAutoScale(false);
+                    gaugeCPU.setBaseSize(gaugeSize);
+                    float gaugeCenterY = contentTop + contentH * 0.50f;
+                    gaugeCPU.draw({b.x + leftW * 0.50f, gaugeCenterY}, "");
+
+                    float rightX = b.x + leftW + 8.0f;
+                    float rightW = b.width - leftW - 16.0f;
+                    float ry = contentTop + contentH * 0.25f;
+                    if (hasModel) {
+                        int mw = MeasureText(cpuModel, static_cast<int>(modelFont));
+                        float mf = modelFont;
+                        while (mf > 8.0f && mw > rightW) { mf -= 0.5f; mw = MeasureText(cpuModel, static_cast<int>(mf)); }
+                        DrawText(cpuModel, static_cast<int>(rightX), static_cast<int>(ry), static_cast<int>(mf), activeTheme.textSecondary);
+                        ry += mf + 4.0f;
+                    }
+                    char buf[64];
+                    snprintf(buf, sizeof(buf), "%.1f %%", local.CPU_Util.load());
+                    int vw = MeasureText(buf, static_cast<int>(modelFont));
+                    DrawText(buf, static_cast<int>(rightX + (rightW - vw) / 2), static_cast<int>(ry), static_cast<int>(modelFont), activeTheme.textPrimary);
+                    ry += modelFont + 6.0f;
+                    if (ry + 30.0f < contentBot) {
+                        barDims.maxSize = rightW;
+                        bars[0].setDimensions(barDims);
+                        bars[0].draw({rightX + rightW / 2, ry + bars[0].getTotalHeight() * 0.45f}, "Freq", formatValue(local.CPU_Freq));
+                    }
+                } else {
+                    float modelY = contentTop;
+                    if (hasModel) {
+                        int mw = MeasureText(cpuModel, static_cast<int>(modelFont));
+                        float maxW = b.width - 16.0f;
+                        float useFont = modelFont;
+                        while (useFont > 7.0f && mw > maxW) { useFont -= 0.5f; mw = MeasureText(cpuModel, static_cast<int>(useFont)); }
+                        if (mw > maxW) {
+                            int line1Len = static_cast<int>(maxW * 0.7f);
+                            std::string part1(cpuModel, line1Len);
+                            DrawText(part1.c_str(), static_cast<int>(midX - MeasureText(part1.c_str(), static_cast<int>(useFont)) / 2),
+                                     static_cast<int>(contentTop + 4.0f), static_cast<int>(useFont), activeTheme.textSecondary);
+                            if (static_cast<int>(strlen(cpuModel)) > line1Len) {
+                                static char buffer[256];
+                                snprintf(buffer, sizeof(buffer), "%s", cpuModel + line1Len);
+                                DrawText(buffer, static_cast<int>(midX - MeasureText(buffer, static_cast<int>(useFont)) / 2),
+                                         static_cast<int>(contentTop + 4.0f + useFont + 2.0f), static_cast<int>(useFont), activeTheme.textSecondary);
+                                modelY = contentTop + useFont * 2.0f + 6.0f;
+                            } else {
+                                modelY = contentTop + useFont + 6.0f;
+                            }
+                        } else {
+                            DrawText(cpuModel, static_cast<int>(midX - mw / 2),
+                                     static_cast<int>(contentTop + 4.0f), static_cast<int>(useFont), activeTheme.textSecondary);
+                            modelY = contentTop + useFont + 6.0f;
+                        }
+                    }
+                    float gaugeAvail = contentBot - modelY - 10.0f;
+                    if (gaugeAvail > contentH * 0.55f) gaugeAvail = contentH * 0.55f;
+                    float gaugeSize = std::min(180.0f * contentScale, gaugeAvail * 0.85f);
+                    if (gaugeSize < 40.0f) gaugeSize = 40.0f;
+                    gaugeCPU.setAutoScale(false);
+                    gaugeCPU.setBaseSize(gaugeSize);
+                    float gaugeCenterY = modelY + gaugeSize * 0.52f;
+                    gaugeCPU.draw({midX, gaugeCenterY}, "Utilization");
+
+                    float gaugeBottom = gaugeCenterY + gaugeSize * 0.42f;
+                    float barAvail = contentBot - gaugeBottom - 4.0f;
+                    if (barAvail > 30.0f) {
+                        barDims.maxSize = cw * 0.88f;
+                        bars[0].setDimensions(barDims);
+                        float barTotalH = bars[0].getTotalHeight();
+                        float barCenterY = gaugeBottom + std::max(barAvail * 0.55f, barTotalH * 0.55f);
+                        if (barCenterY + barTotalH * 0.5f > contentBot) barCenterY = contentBot - barTotalH * 0.5f - 2.0f;
+                        bars[0].draw({midX, barCenterY}, "Frequency", formatValue(local.CPU_Freq));
+                    }
                 }
-                float gaugeTop = contentTop + (hasModel ? modelFont + 8.0f : 6.0f);
-                float gaugeAvail = contentH * 0.60f;
-                float gaugeSize = std::min(cw * 0.58f, gaugeAvail * 0.80f);
-                if (gaugeSize < 40.0f) gaugeSize = 40.0f;
-                gaugeCPU.setAutoScale(false);
-                gaugeCPU.setBaseSize(gaugeSize);
-                float gaugeCenterY = gaugeTop + gaugeSize * 0.52f;
-                gaugeCPU.draw({midX, gaugeCenterY}, "Utilization");
+                break;
+            }
+            case 1: {
+                bool compact = (contentScale < 0.65f || contentH < 100.0f);
+                if (compact) {
+                    float leftW = b.width * 0.48f;
+                    float gaugeSize = std::min(200.0f * contentScale, contentH * 0.85f);
+                    if (gaugeSize < 40.0f) gaugeSize = 40.0f;
+                    if (gaugeSize > leftW * 0.95f) gaugeSize = leftW * 0.95f;
+                    gaugeRAM.setAutoScale(false);
+                    gaugeRAM.setBaseSize(gaugeSize);
+                    float gaugeCenterY = contentTop + contentH * 0.50f;
+                    gaugeRAM.draw({b.x + leftW * 0.50f, gaugeCenterY}, "");
 
-                float gaugeBottom = gaugeCenterY + gaugeSize * 0.42f;
-                barDims.maxSize = cw * 0.88f;
-                bars[0].setDimensions(barDims);
-                float barTotalH = bars[0].getTotalHeight();
-                float barCenterY = contentBot - barTotalH * 0.45f;
-                if (barCenterY < gaugeBottom + barTotalH * 0.5f + 6.0f) {
-                    barCenterY = gaugeBottom + barTotalH * 0.5f + 6.0f;
+                    float rightX = b.x + leftW + 8.0f;
+                    float rightW = b.width - leftW - 16.0f;
+                    float fontS = std::min(14.0f * contentScale, 16.0f);
+                    if (fontS < 10.0f) fontS = 10.0f;
+                    const char* label = "Memory Load";
+                    int lw = MeasureText(label, static_cast<int>(fontS));
+                    DrawText(label, static_cast<int>(rightX + (rightW - lw) / 2), static_cast<int>(contentTop + contentH * 0.30f),
+                             static_cast<int>(fontS), activeTheme.textSecondary);
+                    char buf[64];
+                    snprintf(buf, sizeof(buf), "%.1f %%", local.RAM_Util.load());
+                    int vw = MeasureText(buf, static_cast<int>(fontS + 2));
+                    DrawText(buf, static_cast<int>(rightX + (rightW - vw) / 2), static_cast<int>(contentTop + contentH * 0.55f),
+                             static_cast<int>(fontS + 2), activeTheme.textPrimary);
+                } else {
+                    float gaugeAvail = contentH * 0.70f;
+                    float gaugeSize = std::min(200.0f * contentScale, gaugeAvail * 0.72f);
+                    if (gaugeSize < 40.0f) gaugeSize = 40.0f;
+                    gaugeRAM.setAutoScale(false);
+                    gaugeRAM.setBaseSize(gaugeSize);
+                    float gaugeCenterY = contentTop + contentH * 0.42f;
+                    gaugeRAM.draw({midX, gaugeCenterY}, "Load");
                 }
-                if (barCenterY + barTotalH * 0.5f > contentBot) barCenterY = contentBot - barTotalH * 0.5f - 2.0f;
-                bars[0].draw({midX, barCenterY}, "Frequency", formatValue(local.CPU_Freq));
+                break;
             }
-            else if (tile.config.title == "RAM") {
-                Rectangle tb = tile.titleBar();
-                float contentTop = tb.y + tb.height;
-                float contentBot = tile.bounds.y + tile.bounds.height - 8.0f;
-                float contentH = contentBot - contentTop;
-                float cw = tile.contentWidth();
-                float midX = tile.bounds.x + tile.bounds.width / 2;
-
-                float gaugeAvail = contentH * 0.80f;
-                float gaugeSize = std::min(cw * 0.48f, gaugeAvail * 0.68f);
-                if (gaugeSize < 30.0f) gaugeSize = 30.0f;
-                gaugeRAM.setAutoScale(false);
-                gaugeRAM.setBaseSize(gaugeSize);
-                float gaugeCenterY = contentTop + gaugeAvail * 0.40f;
-                gaugeRAM.draw({midX, gaugeCenterY}, "Load");
-            }
-            else if (tile.config.title == "GPU") {
-                Rectangle tb = tile.titleBar();
-                float contentTop = tb.y + tb.height;
-                float contentBot = tile.bounds.y + tile.bounds.height - 8.0f;
-                float contentH = contentBot - contentTop;
-                float cw = tile.contentWidth();
-                float midX = tile.bounds.x + tile.bounds.width / 2;
-
+            case 2: {
                 const char* gpuModel = stats1.GETGPUModel();
-                float modelFont = std::min(tile.bounds.width * 0.04f, 16.0f);
+                float modelFont = std::min(14.0f * contentScale, 16.0f);
                 if (modelFont < 8.0f) modelFont = 8.0f;
                 bool hasModel = gpuModel[0] != '\0';
                 if (hasModel) {
                     int mw = MeasureText(gpuModel, static_cast<int>(modelFont));
-                    float maxW = tile.bounds.width - 16.0f;
+                    float maxW = b.width - 16.0f;
                     float useFont = modelFont;
                     while (useFont > 7.0f && mw > maxW) { useFont -= 0.5f; mw = MeasureText(gpuModel, static_cast<int>(useFont)); }
                     DrawText(gpuModel, static_cast<int>(midX - mw / 2),
@@ -730,7 +478,10 @@ void renderLoop() {
                 }
                 for (int g = 0; g < gpuCount && g < 4; g++) {
                     char gpuLabel[64];
-                    if (gpuCount == 1) {
+                    const char* displayName = stats1.GETGPUDisplayName(g);
+                    if (displayName[0] != '\0') {
+                        snprintf(gpuLabel, sizeof(gpuLabel), "%s %%", displayName);
+                    } else if (gpuCount == 1) {
                         snprintf(gpuLabel, sizeof(gpuLabel), "Utilization %%");
                     } else {
                         snprintf(gpuLabel, sizeof(gpuLabel), "GPU %d %%", g + 1);
@@ -739,48 +490,35 @@ void renderLoop() {
                     bars[5 + g].setValue(local.GPU_Util[g]);
                     bars[5 + g].draw({midX, startY + g * spacing}, gpuLabel, formatValue(local.GPU_Util[g]));
                 }
+                break;
             }
-            else if (tile.config.title == "Network") {
-                Rectangle tb = tile.titleBar();
-                float contentTop = tb.y + tb.height + 6.0f;
-                float contentBot = tile.bounds.y + tile.bounds.height - 8.0f;
-                float contentH = contentBot - contentTop;
-                float cw = tile.contentWidth();
-                float midX = tile.bounds.x + tile.bounds.width / 2;
-
+            case 3: {
                 barDims.maxSize = cw * 0.85f;
                 bars[1].setDimensions(barDims);
                 float barTotalH = bars[1].getTotalHeight();
-                float availH = contentH;
-                float sp = availH / 4.0f;
-                if (sp < barTotalH + 4.0f) sp = barTotalH + 4.0f;
-                if (sp > 55.0f) sp = 55.0f;
-                float centerY = contentTop + barTotalH * 0.55f + sp * 1.5f;
-                if (centerY + sp * 1.5f + barTotalH * 0.45f > contentBot - 2.0f) {
-                    sp = (contentBot - 2.0f - contentTop - barTotalH) / 3.0f;
-                    if (sp < barTotalH + 3.0f) sp = barTotalH + 3.0f;
-                    centerY = contentTop + barTotalH * 0.55f + sp * 1.5f;
+                float minSpacing = barTotalH + 6.0f;
+                float desiredSpacing = std::max(minSpacing, contentH * 0.22f);
+                if (desiredSpacing > 55.0f) desiredSpacing = 55.0f;
+                float totalNeeded = desiredSpacing * 3.0f + barTotalH;
+                float sp = desiredSpacing;
+                if (totalNeeded > contentH) {
+                    sp = (contentH - barTotalH) / 3.0f;
+                    if (sp < minSpacing) sp = minSpacing;
                 }
-                for (int n = 1; n <= 4; n++) bars[n].setDimensions(barDims);
-                bars[1].draw({midX, centerY - sp * 1.5f}, "WiFi Up", formatValue(local.Wifi_Send));
-                bars[2].draw({midX, centerY - sp * 0.5f}, "WiFi Down", formatValue(local.Wifi_Recv));
-                bars[3].draw({midX, centerY + sp * 0.5f}, "Eth Up", formatValue(local.Ether_Send));
-                bars[4].draw({midX, centerY + sp * 1.5f}, "Eth Down", formatValue(local.Ether_Recv));
+                float startY = contentTop + barTotalH * 0.55f;
+                bars[1].draw({midX, startY + sp * 0.0f}, "WiFi Up", formatValue(local.Wifi_Send));
+                bars[2].draw({midX, startY + sp * 1.0f}, "WiFi Down", formatValue(local.Wifi_Recv));
+                bars[3].draw({midX, startY + sp * 2.0f}, "Eth Up", formatValue(local.Ether_Send));
+                bars[4].draw({midX, startY + sp * 3.0f}, "Eth Down", formatValue(local.Ether_Recv));
+                break;
             }
-            else if (tile.config.title == "Storage") {
+            case 4: {
                 const auto& diskList = stats1.GetDisks();
                 int diskCount = static_cast<int>(diskList.size());
                 int enabledCount = 0;
                 for (int i = 0; i < diskCount; i++) {
                     if (diskList[i].enabled) enabledCount++;
                 }
-                Rectangle tb = tile.titleBar();
-                float contentTop = tb.y + tb.height + 6.0f;
-                float contentBot = tile.bounds.y + tile.bounds.height - 8.0f;
-                float contentH = contentBot - contentTop;
-                float cw = tile.contentWidth();
-                float midX = tile.bounds.x + tile.bounds.width / 2;
-
                 if (enabledCount == 0) {
                     DrawText("No drives enabled", static_cast<int>(midX - MeasureText("No drives enabled", fontSize) / 2),
                              static_cast<int>(contentTop + contentH * 0.45f), fontSize, activeTheme.textSecondary);
@@ -808,11 +546,56 @@ void renderLoop() {
                         barIdx++;
                     }
                 }
+                break;
+            }
             }
         }
 
-        for (auto& t : tiles) {
-            t.drawSnapPreview(activeTheme);
+        Vector2 mousePos2 = GetMousePosition();
+        for (auto& b : bars) {
+            if (b.isLabelTruncated() && CheckCollisionPointRec(mousePos2, b.getLastBarRect())) {
+                Rectangle tr = b.getLastBarRect();
+                const char* tipText = b.getLastLabel().c_str();
+                int tipW = MeasureText(tipText, fontSize) + 16;
+                int tipH = fontSize + 10;
+                float tipX = tr.x + tr.width / 2 - tipW / 2;
+                float tipY = tr.y - tipH - 4;
+                if (tipY < 4.0f) tipY = tr.y + tr.height + 4;
+                if (tipX < 2.0f) tipX = 2.0f;
+                if (tipX + tipW > static_cast<float>(sw)) tipX = static_cast<float>(sw) - tipW - 2.0f;
+                DrawRectangleRounded({tipX, tipY, static_cast<float>(tipW), static_cast<float>(tipH)}, 0.3f, 8, activeTheme.panelOverlay);
+                DrawRectangleRoundedLinesEx({tipX, tipY, static_cast<float>(tipW), static_cast<float>(tipH)}, 0.3f, 8, 1.0f, activeTheme.accentColor);
+                DrawText(tipText, static_cast<int>(tipX) + 8, static_cast<int>(tipY) + 5, fontSize, activeTheme.textPrimary);
+            }
+        }
+
+        if (hasPreview) {
+            for (size_t i = 0; i < placementPreview.affectedIndices.size(); i++) {
+                int idx = placementPreview.affectedIndices[i];
+                int col = placementPreview.newPositions[i].first;
+                int row = placementPreview.newPositions[i].second;
+                const auto& t = grid.tiles[idx];
+                float cellW = static_cast<float>(sw) / GRID_COLS;
+                float cellH = static_cast<float>(tileAreaH) / GRID_ROWS;
+                Rectangle ghost = {
+                    col * cellW,
+                    row * cellH + grid.offsetY,
+                    t.spanCols * cellW,
+                    t.spanRows * cellH
+                };
+                Color glow = {activeTheme.accentColor.r, activeTheme.accentColor.g, activeTheme.accentColor.b, 80};
+                DrawRectangleRounded(ghost, 0.06f, 12, glow);
+                DrawRectangleRoundedLinesEx(ghost, 0.06f, 12, 2.0f, activeTheme.accentColor);
+                const char* label = (idx == dragSourceIdx) ? t.title.c_str() : nullptr;
+                if (label) {
+                    float fs = std::min(ghost.width * 0.08f, ghost.height * 0.12f);
+                    if (fs < 8.0f) fs = 8.0f;
+                    if (fs > 18.0f) fs = 18.0f;
+                    int tw = MeasureText(label, static_cast<int>(fs));
+                    DrawText(label, static_cast<int>(ghost.x + (ghost.width - tw) / 2),
+                             static_cast<int>(ghost.y + 4.0f), static_cast<int>(fs), activeTheme.accentColor);
+                }
+            }
         }
 
         DrawFPS(sw - 80, 12);
@@ -831,8 +614,8 @@ void renderLoop() {
             DrawText("F2:Diag  F3:Settings  F4:Log", 12, sh - barH + 6, statusFont, activeTheme.textMuted);
         }
 
-        if (showDiagnostics) drawDiagnosticsOverlay(sw, sh, fontSize);
-        if (showSettings) drawSettingsOverlay(sw, sh, fontSize);
+        if (showDiagnostics) DrawDiagnosticsOverlay(sw, sh, fontSize, activeTheme, statsData, stats1);
+        if (showSettings) DrawSettingsOverlay(sw, sh, fontSize, activeTheme, tileEnabled, stats1);
 
         EndDrawing();
     }
@@ -846,6 +629,18 @@ void renderLoop() {
     saveCfg.windowY = GetWindowPosition().y;
     saveCfg.windowW = GetScreenWidth();
     saveCfg.windowH = GetScreenHeight();
+    {
+        const auto& disks = stats1.GetDisks();
+        for (int i = 0; i < 8; i++) {
+            saveCfg.diskEnabled[i] = (i < static_cast<int>(disks.size())) ? disks[i].enabled : true;
+        }
+    }
+    {
+        const auto& adapters = stats1.GetAdapters();
+        for (int i = 0; i < 4; i++) {
+            saveCfg.adapterEnabled[i] = (i < static_cast<int>(adapters.size())) ? adapters[i].enabled : true;
+        }
+    }
     (void)configManager.save(saveCfg);
     logger.stop();
 

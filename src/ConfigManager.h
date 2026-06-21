@@ -1,5 +1,5 @@
-#ifndef CONFIGV1_H
-#define CONFIGV1_H
+#ifndef CONFIGMANAGER_H
+#define CONFIGMANAGER_H
 
 #include <windows.h>
 #include <string>
@@ -11,14 +11,16 @@ struct AppConfig {
     int windowY{-1};
     int windowW{1200};
     int windowH{800};
+    bool diskEnabled[8]{true, true, true, true, true, true, true, true};
+    bool adapterEnabled[4]{true, true, true, true};
 };
 
-class ConfigV1 {
+class ConfigManager {
 public:
-    ConfigV1() noexcept;
+    ConfigManager() noexcept;
 
-    ConfigV1(const ConfigV1&) = delete;
-    ConfigV1& operator=(const ConfigV1&) = delete;
+    ConfigManager(const ConfigManager&) = delete;
+    ConfigManager& operator=(const ConfigManager&) = delete;
 
     [[nodiscard]] bool load() noexcept;
     [[nodiscard]] bool save(const AppConfig& cfg) noexcept;

@@ -1,7 +1,7 @@
 #include "test_harness.h"
-#include "StatsV1.h"
+#include "StatsCollector.h"
 
-void RunGPUTests(StatsV1& stats) {
+void RunGPUTests(StatsCollector& stats) {
     printf("\n[GPU Tests]\n");
 
     TEST("IsGPUAvailable returns bool");

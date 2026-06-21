@@ -1,17 +1,17 @@
-#ifndef LOGGERV1_H
-#define LOGGERV1_H
+#ifndef CSVLOGGER_H
+#define CSVLOGGER_H
 
 #include <windows.h>
 #include <string>
 #include <cstdio>
 
-class LoggerV1 {
+class CsvLogger {
 public:
-    LoggerV1() noexcept;
-    ~LoggerV1() noexcept;
+    CsvLogger() noexcept;
+    ~CsvLogger() noexcept;
 
-    LoggerV1(const LoggerV1&) = delete;
-    LoggerV1& operator=(const LoggerV1&) = delete;
+    CsvLogger(const CsvLogger&) = delete;
+    CsvLogger& operator=(const CsvLogger&) = delete;
 
     [[nodiscard]] bool start(const wchar_t* basePath) noexcept;
     void stop() noexcept;

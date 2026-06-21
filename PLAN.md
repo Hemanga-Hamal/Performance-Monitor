@@ -1,6 +1,6 @@
 # Project Plan: Performance Monitor
 
-## Status: Production-Ready — All Phases Complete
+## Status: Phase 17 — Structural Rebuild + GPU Fix
 
 ## Overview
 Windows-only C++17 performance monitor using raylib 5.5 and the PDH API. Monitors CPU frequency/utilization, RAM, multi-GPU utilization, disk usage, and network throughput in real time. Features a tile-based dashboard UI with drag-to-arrange tiles, theme support, device diagnostics, config persistence, CSV logging, and a 63-test suite.
@@ -17,33 +17,23 @@ cmake --build build --config Release
 
 ```
 src/
-├── main.cpp              # Entry point, landing page, tile dashboard, F2 diagnostics,
-│                         # F3 settings (per-disk/adapter toggles), F4 CSV logging, status bar
-├── StatsV1.cpp / .h      # PDH stats collector: CPU freq/util (PDH + GetSystemTimes),
-│                         # RAM used/util (GlobalMemoryStatusEx), multi-GPU per-instance
-│                         # (PdhExpandWildCardPathW), multi-disk enumeration (GetLogicalDrives),
-│                         # network adapter discovery (PdhExpandWildCardPathW + keyword filter),
-│                         # per-disk/per-adapter enable/disable, GPU displayName mapping
-├── BarV1.cpp / .h        # Horizontal progress bar: rounded ends (DrawRectangleRounded),
-│                         # auto-scale or fixed sizing, label truncation with "...",
-│                         # getTotalHeight() for spacing, drawInRect() for bounded rendering
-├── GaugeV1.cpp / .h      # Circular arc gauge: 300-segment triangle arc, glow behind active arc,
-│                         # rounded endpoint cap (DrawCircleV), auto-scale or fixed sizing,
-│                         # ConfigArc (240°), ConfigQuarter (270°) presets, drawInRect()
-├── ConfigV1.cpp / .h     # Config persistence: saves/loads theme, tile state, window pos/size
-│                         # to %APPDATA%\PerfMon\config.ini (INI format)
-├── LoggerV1.cpp / .h     # CSV logger: F4 toggle, writes timestamped metrics rows
-│                         # to perfmon_YYYYMMDD_HHMMSS.csv in working directory
-├── TileV1.h              # Grid tile widget: computeBounds (grid layout), handleDrag (mouse),
-│                         # computeSnapPreview (ghost from top-left edge), snapToGrid (on release),
-│                         # resolveCollisions (scan 0..gridRows × 0..gridCols for empty cells),
-│                         # drawFrame (shadow, rounded rect, title, separator, grip),
-│                         # auto-span: spanCols/spanRows recomputed from bounds/cell ratio on snap
-├── ThemeV1.h             # Color theme: Dark, Light, HighContrast static presets
-│                         # 22 fields: windowBg, tileBg, tileBorder, tileShadow, titleText,
-│                         # textPrimary/Secondary/Muted, lineColor, barBackground/Foreground/ForegroundDim,
-│                         # gaugeArcBg/ArcActive/ArcGlow/GaugeText, landingBg, accentColor, accentHover,
-│                         # panelOverlay, toggleActive/Inactive, scrollbarColor
+├── main.cpp              # Entry point, 2 threads, tile dashboard rendering, status bar,
+│                         # F4 CSV logging, preset bar (F5), tooltips, event handling
+├── LandingPage.cpp/.h    # Landing page: theme picker (3 cards), "Start Monitoring" button
+│                         # Defines enum AppState { LANDING, DASHBOARD }
+├── DiagnosticsOverlay.cpp/.h  # F2 diagnostics: frosted overlay, scroll, sections, Save
+├── SettingsOverlay.cpp/.h     # F3 settings: tile/disk/adapter toggle checkboxes
+├── StatsData.h           # Shared StatsData struct (atomics) for cross-thread sharing
+├── StatsCollector.cpp / .h      # PDH + Win32 stats collector
+├── BarWidget.cpp / .h        # Horizontal progress bar widget (with Theme::fromAppTheme factory)
+├── GaugeWidget.cpp / .h      # Circular arc gauge widget (with Theme::fromAppTheme factory)
+├── ConfigManager.cpp / .h     # Config persistence to %APPDATA%\PerfMon\config.ini (INI format)
+├── CsvLogger.cpp / .h     # CSV logger: F4 toggle, writes timestamped metric rows
+├── TileItem.h              # Grid tile widget with drag-to-swap, GridLayout manager
+│                         # GridConfig/GridPresets: 5 grid sizes, F5 toggle
+├── AppTheme.h             # Canonical 22-field color theme (Dark, Light, HighContrast)
+├── TitleBar.h / .cpp     # Custom 32px title bar, drag + close
+├── TitleBarWin32.cpp     # Win32 subclass: WM_NCHITTEST→HTCAPTION
 └── tests/
     ├── test_main.cpp       # Test runner (calls all 7 groups)
     ├── test_harness.h      # Shared macros: TEST, CHECK, CHECK_EQ, CHECK_RANGE
@@ -52,8 +42,7 @@ src/
     ├── test_gpu.cpp        # GPUTests: available, utilization, model, name (4 tests)
     ├── test_disk.cpp       # DiskTests: count, per-disk name/total/used/util (15 tests)
     ├── test_network.cpp    # NetworkTests: WiFi/Ethernet send/receive, adapter list (5 tests)
-    └── test_graphics.cpp   # GraphicsTests: BarV1 theme/dims/config/sizing (12 tests),
-                            # GaugeV1 clamp/presets/setters (18 tests)
+    └── test_graphics.cpp   # GraphicsTests: BarWidget/GaugeWidget: theme, dims, config, sizing (30 tests)
 ```
 
 ## Phase History
@@ -70,32 +59,28 @@ src/
 ### Phase 2: Robustness — DONE
 - All Sleep() calls eliminated (non-blocking QPC-timed PDH collection)
 - Dead code in GETCPUFrequency fixed (merged guard)
-- Dynamic network adapter discovery (first PdhEnumObjectItemsW, later PdhExpandWildCardPathW)
-- Network swprintf_s bug fixed (adapter name was replaced by direction string)
+- Dynamic network adapter discovery via PdhExpandWildCardPathW
 - Thread safety: atomic cache values, single-writer pattern
 
 ### Phase 3: Build & Distribution — DONE
 - CMakeLists.txt targets: perfmon.exe + perfmon_tests.exe
 - MSVC #pragma removed, linking in CMake target_link_libraries
-- Unused includes removed
-- GaugeV1 missing setters implemented
+- GaugeWidget missing setters implemented
 - README.md updated
 
 ### Phase 4: GPU Monitoring — DONE
-- PDH GPU Engine query (cross-vendor: `\GPU Engine(*)\Utilization Percentage`)
-- Non-blocking two-phase pattern (same as CPU)
+- PDH GPU Engine query: `\GPU Engine(*)\Utilization Percentage`
+- Non-blocking two-phase pattern
 - GPU model name via EnumDisplayDevices
-- CPU model name via registry (HKLM\HARDWARE\DESCRIPTION\...)
+- CPU model name via registry
 
 ### Phase 5: Tile UI — DONE
-- TileV1 widget: computeBounds, handleDrag, snapToGrid, drawFrame, snapPreview
-- Drag title bar to move, drag corner grip to resize
-- Snap-to-grid on release with ghost preview during drag
-- Collision avoidance: resolveCollisions scans all grid cells for empty space
-- Auto-span: spanCols/spanRows recomputed from bounds/cell ratio on snap
+- TileItem widget: computeBounds, handleDrag, snapToGrid, drawFrame, snapPreview
+- Drag-to-swap, ghost preview, collision avoidance
+- Auto-span recomputed from bounds/cell ratio
 
 ### Phase 6: Overlays — DONE
-- F2: Scrollable diagnostics with scissor clipping, section headers with line dividers, Save button
+- F2: Scrollable diagnostics with scissor clipping, section headers, Save button
 - F3: Device visibility toggles with per-disk/per-adapter sections
 - Landing page: theme selector (3 cards with color swatches), Start button
 
@@ -103,37 +88,71 @@ src/
 - 63 tests, 7 groups, 0 failures
 
 ### Phase 8: Feature Expansion — DONE
-- Multi-GPU per-instance monitoring using PdhExpandWildCardPathW
-- Per-disk and per-adapter enable/disable in F3 settings
-- BarV1::drawInRect and GaugeV1::drawInRect for bounded rendering
+- Multi-GPU per-instance monitoring
+- Per-disk and per-adapter enable/disable
+- BarWidget::drawInRect and GaugeWidget::drawInRect
 - Config file persistence (INI in %APPDATA%\PerfMon\config.ini)
-- LoggerV1: CSV logging with F4 toggle, timestamped metrics rows
-- Export diagnostics to text file (Save button in F2 overlay)
-- Config persistence: theme, tileEnabled[5], window position/size
+- CSV logging with F4 toggle
+- Export diagnostics to text file
 
 ### Phase 9: UI Polish — DONE
 - Migrated from 2x4 to 4x6 grid for finer snapping
 - Drop shadows on tiles and overlays
-- BarV1 rounded ends (DrawRectangleRounded)
-- GaugeV1 glow effect + endpoint cap
-- Frosted glass overlay panels (semi-transparent bg + border)
-- Rounded checkbox toggles with checkmarks in F3
-- Status bar with background + separator at window bottom
-- Text auto-shrinking to fit tile width (model names, bar labels)
-- Font sizes computed from tile dimensions, not window dimensions
-- Network labels shortened to "WiFi Up/Down", "Eth Up/Down"
-- GPU labels simplified to "GPU 1", "GPU 2" for multi-GPU
-- Collision avoidance scans ALL rows (including above) for displaced tiles
-- Snap preview computed from top-left edge so large tiles can reach row 0
+- BarWidget rounded ends, GaugeWidget glow + endpoint cap
+- Frosted glass overlay panels
+- Rounded checkbox toggles in F3
+- Status bar with background + separator
+- Text auto-shrinking, font sizes from tile dimensions
+- Network/GPU labels simplified
 
 ### Phase 10: Bug Fixes — DONE
-- GetNetworkRate early-return returning wrong counter (sendRate vs receiveRate)
-- DiskCount.load() called on non-atomic plain int
-- swprintf_s missing buffer size parameter
-- Bar spacing now uses getTotalHeight() (bar + label text) instead of raw bar height
-- Disabled disks excluded from Storage tile rendering
-- PDH discovery switched from PdhEnumObjectItemsW to PdhExpandWildCardPathW (more reliable)
-- CPU model text centering fixed (uses tile center, not content center)
+- GetNetworkRate early-return wrong counter
+- DiskCount.load() on non-atomic int
+- swprintf_s missing buffer size
+- Bar spacing uses getTotalHeight()
+- PDH discovery switched to PdhExpandWildCardPathW
+
+### Phase 11: Feature & Polish — DONE
+- CPU frequency registry fallback
+- CPU model multi-line text wrapping
+- GPU per-instance display names
+- Per-disk/per-adapter enabled state persisted
+- BarWidget gradient fill, hover tooltips
+- Dark/Light auto-detection on first run
+- Network adapter name cleaning
+- Tile drag/resize fully functional
+
+### Phase 12: Custom Title Bar & UI — DONE
+- FLAG_WINDOW_UNDECORATED with custom 32px themed title bar
+- Title bar on both landing page and dashboard
+- boundsYOffset for grid offset
+
+### Phase 13: Code Quality Refactor — DONE
+- main.cpp split into modular components:
+  - LandingPage.cpp/.h — landing page rendering
+  - DiagnosticsOverlay.cpp/.h — F2 diagnostics panel
+  - SettingsOverlay.cpp/.h — F3 settings panel
+  - StatsData.h — shared atomic struct for cross-thread data
+- GaugeWidget.h include guard fixed: `GaugeWidget_H` → `GaugeWidget_H`
+- Design system unifications: BarWidget::Theme::fromAppTheme() and GaugeWidget::Theme::fromAppTheme() factory methods
+- main.cpp: 1189 → 740 lines
+
+### Phase 14: VS Code-Style Docking Layout — DISCARDED
+- LayoutTree BSP docking had fundamental bugs (fall-through, freeform drag incompatibility)
+- Entire dashboard rebuilt in Phase 15
+
+### Phase 15: Grid-Based Tile System — DONE
+- Clean-slate rebuild: GridLayout manager with drag-to-swap
+- Tiles snap to grid cells (4x6), index-based dispatch
+- Auto-scaling contentScale per tile
+
+### Phase 17: Structural Rebuild + GPU Fix + Tile Algorithm — IN PROGRESS
+- New tile placement algorithm (footprint-based, expand-displace, hard reject, full ghost preview)
+- 4×4 fixed grid replacing old 4×6 system
+- Code reorganized into module-per-system: CPU, GPU, RAM, Disk, Network, Layout, Rendering, Window
+- Tile as primary rendering context — all content governed by parent tile
+- GPU data fixed definitively: PDH + DXGI for model/util/VRAM/clock
+- Design simplified to clean minimalism
 
 ## Architecture Notes
 
@@ -141,8 +160,8 @@ src/
 ```
 updateStats thread  ──stores──>  StatsData (atomics)  ──loads──>  renderLoop thread
         │                                                              │
-   StatsV1 methods                                              Tile rendering
-   (PDH queries)                                                (GaugeV1, BarV1)
+   StatsCollector methods                                              Tile rendering
+   (PDH queries)                                                (GaugeWidget, BarWidget)
 ```
 
 ### PDH Timing
@@ -151,45 +170,65 @@ All rate-based counters use a non-blocking two-phase pattern:
 2. Subsequent calls: check elapsed time via QueryPerformanceCounter
 3. If enough time passed: collect again, compute, cache, return
 
-### Network Adapter Discovery (current)
+### Network Adapter Discovery
 1. `PdhExpandWildCardPathW(L"\\Network Interface(*)\\Bytes Total/sec")` to get all counter paths
 2. Parse instance names from expanded paths between `(` and `)`
-3. Dup-removal on parsed names
-4. Keyword matching: Wi-Fi (wi-fi, wifi, wireless, wlan, 802.11)
-5. Exclusion filters: bluetooth, virtual, loopback, teredo, isatap
-6. Fallback: single adapter → assign to ethernet
+3. Keyword matching: Wi-Fi (wi-fi, wifi, wireless, wlan, 802.11)
+4. Exclusion filters: bluetooth, virtual, loopback, teredo, isatap
+5. Fallback: single adapter → assign to ethernet
 
-### GPU Multi-Instance Architecture (current)
+### GPU Multi-Instance Architecture
 1. `PdhExpandWildCardPathW(L"\\GPU Engine(*)\\Utilization Percentage")` to get all counter paths
 2. Parse instance names from expanded paths (skip `_Total`)
 3. Create separate PDH query per GPU instance
 4. Store in `vector<GPUInstance>` with per-instance cached utilization
-5. `EnumDisplayDevicesW` loop maps display device names to `GPUInstance::displayName`
-6. GPU tile renders one bar per instance labeled "GPU 1", "GPU 2"
-7. displayName field exists on GPUInstance but not yet exposed via public API
+5. Render one bar per instance labeled "GPU 1", "GPU 2"
 
-### Tile Grid Layout (current: 4 cols × 6 rows)
+### Tile Placement Algorithm — Precise Spec
+
+Grid is a fixed 4×4 matrix. Cells split evenly based on current window size. Think of it as a 4×4 matrix of cell coordinates (row, col), each 0–3.
+
+A tile occupies a rectangular span of one or more cells (e.g. a 2×2 tile occupies 4 cells). Each tile has per-category minimum/maximum size constraints.
+
+**PLACEMENT LOGIC — when a tile is dropped at a target cell position:**
+
+1. Determine dragged tile's footprint (spanCols × spanRows) from its current size setting.
+2. Check whether ALL cells required for that footprint, starting at the drop target position, are currently unoccupied (ignoring the dragged tile itself).
+3. **IF all required cells are free:** place the tile there directly. Done.
+4. **IF one or more required cells are occupied by another tile:** attempt to make room by expanding/shifting available free space toward whichever direction (up/down/left/right) currently has the MOST contiguous free cells, displacing the conflicting tile(s) into that space, but ONLY if the conflicting tile(s) can fit in the resulting space without violating their own minimum size.
+5. **IF no valid arrangement exists** that accommodates the move without forcing any tile below its minimum size or causing overlap: **REJECT** the move entirely. The dragged tile returns to its original position. No partial or invalid swap occurs.
+
+**GHOST PREVIEW:** while dragging (before drop), continuously compute and display a live preview of the full prospective outcome — not just a highlight of the target cell. Show where the dragged tile would land AND how any displaced tiles would shift/resize as a result, updating in real time as the user drags. The user sees the complete resulting layout before committing to the drop.
+
+**HARD INVARIANT:** two tiles may never occupy any of the same grid cell(s) simultaneously, at any point, in the live preview's underlying computed state or in the final committed layout. Validate this after every placement.
+
+**Test Scenario 1 — Clean Fit:**
+Grid has CPU(2×2) at (0,0), RAM(2×2) at (2,0), GPU(2×1) at (0,2), Network(2×1) at (2,2), Storage(4×1) at (0,3). User drags CPU to (2,2). Network occupies (2,2). GPU is at (0,2). The direction with most free space is UP/LEFT — Network shifts to (0,2) and GPU shifts to (2,2). Clean swap of the two right-column tiles. Result: CPU at (2,2), GPU at (0,2), Network at (2,2)... wait, that's a conflict. Let me redo. Actually simpler: drag CPU(2×2) to drop at (2,0) where RAM(2×2) sits. RAM can move to (0,0) which is now free (CPU left it). Result: RAM at (0,0), CPU at (2,0). Clean swap. No min-size violations.
+
+**Test Scenario 2 — Expand-and-Displace:**
+Grid has CPU(2×2) at (0,0), RAM(2×2) at (2,0), GPU(2×1) at (0,2), Network(2×1) at (2,2), Storage(4×1) at (0,3). User drags CPU(2×2) to drop at (0,1). Cells (0,1)-(1,2) are: GPU occupies (0,2)-(1,2) and CPU's own old position is (0,0)-(1,1). The conflicting tile is GPU. Check all 4 directions for contiguous free space: DOWN has Storage but row 4+ is off-grid. RIGHT has RAM then Network. UP has nothing (row -1). LEFT has nothing (col -1). The most free cells are DOWN — but GPU can't move there without pushing Storage. Actually simpler scenario: drag GPU(2×1) to (0,0). CPU is there. CPU needs 2×2 minimum. The only free cells are (2,0)-(3,1) (where CPU would need to move). CPU(2×2) fits at (2,0)-(3,1). Result: GPU at (0,0), CPU at (2,0). RAM is still at (2,0)... conflict! RAM occupies (2,0)-(3,1). So can't place CPU at (2,0). The move is REJECTED because CPU has minimum 2×2 and the only space large enough is occupied by RAM, and RAM(min 2×2) can't fit at (0,0)-(1,1) which is only 2×1. Reject.
+
+**Test Scenario 3 — Rejected Case (CPU Minimum Violation):**
+Grid: CPU(2×2) at (0,0), RAM(2×2) at (2,0), GPU(2×1) at (0,2), Network(2×1) at (2,2), Storage(4×1) at (0,3). User drags GPU(2×1) to drop at (0,0). CPU occupies (0,0)-(1,1). CPU minimum is 2×2. Can CPU move anywhere with 2×2 free? Check all 4×4 cells ignoring GPU: occupied cells are RAM(2,0)-(3,1), Network(2,2)-(3,2), Storage(0,3)-(3,3). Free cells: none large enough for 2×2. REJECT. GPU snaps back to (0,2). Nothing changes.
+
+### Tile Grid Layout (default: 4×4)
 ```
-Cell = (screenW / 4, (screenH - 30) / 6)
+Cell = (screenW / 4, (screenH - statusBar) / 4)
 Default layout:
-  Row 0: [CPU(2x2)]    [RAM(2x2)]
-  Row 2: [GPU(2x2)]    [Network(2x2)]
-  Row 4: [   Storage (4x2)   ]
+  Row 0: [CPU(2×2)]    [RAM(2×2)]
+  Row 2: [GPU(2×1)]    [Network(2×1)]
+  Row 3: [   Storage (4×1)   ]
 ```
 
-### Tile Content Layout Algorithm
-All content positioned within `[titleBar().bottom + 6, bounds.bottom - 8]`:
-1. Model text (CPU/GPU): `min(bounds.w * 0.04, 16)` px font, auto-shrinks to fit width
-2. Gauge: `min(cw * 0.48-0.58, contentH * xx%)` centered below model text
-3. Bars: spaced using `bar.getTotalHeight()` as minimum, anchored from content bottom
-4. Overflow guard: bars truncated if exceeding content bottom
+### Design System
+- **AppTheme**: Canonical 22-field color theme. Dark, Light, HighContrast static factories.
+- **BarWidget::Theme::fromAppTheme(activeTheme)**: Maps barBackground, barForeground, barForegroundDim, textPrimary
+- **GaugeWidget::Theme::fromAppTheme(activeTheme)**: Maps tileBg, gaugeArcBg, gaugeArcActive, gaugeText
 
 ## Known Limitations
-- Single-window raylib (no multi-monitor or separate diagnostic window)
-- Network: only one Wi-Fi and one Ethernet adapter monitored (not all adapters)
+- Single-window (no multi-monitor or separate diagnostic window)
+- Network: only one Wi-Fi and one Ethernet adapter monitored
 - No temperature, fan speed, or power monitoring
 - No system tray minimize
-- PDH GPU Engine counter may not exist on all systems (hybrid graphics, basic display adapters)
-- Per-disk enabled state not persisted in config file
-- Disabled disks still counted in GETDiskCount()
-- Overlay fonts scale with window, not overlay panel dimensions
+- PDH GPU Engine counter may not exist on all systems
+- Window resize snapping to grid cell multiples not implemented

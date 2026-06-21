@@ -1,4 +1,4 @@
-#include "ConfigV1.h"
+#include "ConfigManager.h"
 #include <shlobj.h>
 #include <cstdio>
 #include <algorithm>
@@ -7,11 +7,11 @@ namespace {
     constexpr const wchar_t* CONFIG_FILENAME = L"\\PerfMon\\config.ini";
 }
 
-ConfigV1::ConfigV1() noexcept {
+ConfigManager::ConfigManager() noexcept {
     resolvePath();
 }
 
-void ConfigV1::resolvePath() noexcept {
+void ConfigManager::resolvePath() noexcept {
     wchar_t appData[MAX_PATH] = {};
     if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, appData))) {
         mFilePath = appData;
@@ -24,7 +24,7 @@ void ConfigV1::resolvePath() noexcept {
     }
 }
 
-bool ConfigV1::load() noexcept {
+bool ConfigManager::load() noexcept {
     if (mFilePath.empty()) return false;
 
     FILE* f = nullptr;
@@ -52,13 +52,19 @@ bool ConfigV1::load() noexcept {
         else if (swscanf_s(line, L"windowH=%d", &value) == 1) {
             mConfig.windowH = value;
         }
+        else if (swscanf_s(line, L"disk%d=%d", &index, &value) == 2) {
+            if (index >= 0 && index < 8) mConfig.diskEnabled[index] = (value != 0);
+        }
+        else if (swscanf_s(line, L"adapter%d=%d", &index, &value) == 2) {
+            if (index >= 0 && index < 4) mConfig.adapterEnabled[index] = (value != 0);
+        }
     }
 
     fclose(f);
     return true;
 }
 
-bool ConfigV1::save(const AppConfig& cfg) noexcept {
+bool ConfigManager::save(const AppConfig& cfg) noexcept {
     if (mFilePath.empty()) return false;
 
     FILE* f = nullptr;
@@ -73,6 +79,12 @@ bool ConfigV1::save(const AppConfig& cfg) noexcept {
     fwprintf(f, L"windowY=%d\n", cfg.windowY);
     fwprintf(f, L"windowW=%d\n", cfg.windowW);
     fwprintf(f, L"windowH=%d\n", cfg.windowH);
+    for (int i = 0; i < 8; i++) {
+        fwprintf(f, L"disk%d=%d\n", i, cfg.diskEnabled[i] ? 1 : 0);
+    }
+    for (int i = 0; i < 4; i++) {
+        fwprintf(f, L"adapter%d=%d\n", i, cfg.adapterEnabled[i] ? 1 : 0);
+    }
 
     fclose(f);
     return true;

@@ -1,7 +1,7 @@
 #include "test_harness.h"
-#include "StatsV1.h"
+#include "StatsCollector.h"
 
-void RunNetworkTests(StatsV1& stats) {
+void RunNetworkTests(StatsCollector& stats) {
     printf("\n[Network Tests]\n");
 
     TEST("GETWiFiSend >= 0");
