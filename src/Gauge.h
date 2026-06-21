@@ -1,11 +1,11 @@
-#ifndef GaugeV1_H
-#define GaugeV1_H
+#ifndef GAUGE_H
+#define GAUGE_H
 
 #include "raylib.h"
 #include <string>
 #include <cmath>
 
-class GaugeV1 {
+class Gauge {
 public:
     static float clamp(float value, float min, float max);
 
@@ -76,7 +76,7 @@ private:
     float value;
 
 public:
-    GaugeV1(const Theme& theme = Theme(), 
+    Gauge(const Theme& theme = Theme(), 
            const Dimensions& dimensions = Dimensions(),
            const Config& config = Config());
 
@@ -96,4 +96,4 @@ public:
     void drawInRect(Rectangle bounds, const std::string& label) const;
 };
 
-#endif // GaugeV1_H
+#endif // GAUGE_H

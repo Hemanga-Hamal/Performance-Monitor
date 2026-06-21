@@ -1,4 +1,4 @@
-#include "StatsV1.h"
+#include "Stats.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <string>
@@ -53,7 +53,7 @@ namespace {
     }
 }
 
-StatsV1::StatsV1() noexcept {
+Stats::Stats() noexcept {
     if (PdhOpenQuery(nullptr, 0, &cpuQuery) == ERROR_SUCCESS) {
         if (PdhAddCounterW(cpuQuery, L"\\Processor Information(_Total)\\Processor Frequency", 0, &counterFreq) != ERROR_SUCCESS) {
             if (cpuQuery) {
@@ -150,7 +150,7 @@ StatsV1::StatsV1() noexcept {
         adapterInfos.push_back(info);
     }
 
-    // ── GPU discovery via DXGI (always works, gives model + total VRAM + LUID) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ GPU discovery via DXGI (always works, gives model + total VRAM + LUID) Ã¢â€â‚¬Ã¢â€â‚¬
     {
         IDXGIFactory* dxgiFactory = nullptr;
         if (SUCCEEDED(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&dxgiFactory))) && dxgiFactory) {
@@ -183,7 +183,7 @@ StatsV1::StatsV1() noexcept {
         }
     }
 
-    // ── PDH VRAM: match by LUID (same approach as QueryGpuUtilWmi) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ PDH VRAM: match by LUID (same approach as QueryGpuUtilWmi) Ã¢â€â‚¬Ã¢â€â‚¬
     // LUID-based matching is robust regardless of PDH enumeration order or post-sort reordering
     {
         DWORD vramBufSize = 0;
@@ -281,7 +281,7 @@ StatsV1::StatsV1() noexcept {
     QueryPerformanceCounter(&lastCPUTime);
 }
 
-StatsV1::~StatsV1() noexcept {
+Stats::~Stats() noexcept {
     if (cpuQuery) {
         if (counterPerf) PdhRemoveCounter(counterPerf);
         if (counterFreq) PdhRemoveCounter(counterFreq);
@@ -305,7 +305,7 @@ StatsV1::~StatsV1() noexcept {
     if (pWbemLoc) pWbemLoc->Release();
 }
 
-bool StatsV1::InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* adapterName) {
+bool Stats::InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* adapterName) {
     if (PdhOpenQuery(nullptr, 0, &counter.query) != ERROR_SUCCESS) {
         return false;
     }
@@ -327,7 +327,7 @@ bool StatsV1::InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* 
     return true;
 }
 
-void StatsV1::CleanupNetworkCounter(NetworkCounters& counter) noexcept {
+void Stats::CleanupNetworkCounter(NetworkCounters& counter) noexcept {
     if (counter.query) {
         if (counter.sendCounter) PdhRemoveCounter(counter.sendCounter);
         if (counter.receiveCounter) PdhRemoveCounter(counter.receiveCounter);
@@ -336,7 +336,7 @@ void StatsV1::CleanupNetworkCounter(NetworkCounters& counter) noexcept {
     }
 }
 
-float StatsV1::GetNetworkRate(NetworkCounters& counter, PDH_HCOUNTER hCounter) noexcept {
+float Stats::GetNetworkRate(NetworkCounters& counter, PDH_HCOUNTER hCounter) noexcept {
     if (!counter.query || !hCounter || !counter.primed) return 0.0f;
 
     LARGE_INTEGER now, freq;
@@ -364,7 +364,7 @@ float StatsV1::GetNetworkRate(NetworkCounters& counter, PDH_HCOUNTER hCounter) n
     return counter.receiveRate;
 }
 
-float StatsV1::GETCPUFrequency() noexcept {
+float Stats::GETCPUFrequency() noexcept {
     if (!cpuQuery || !counterFreq || !counterPerf) return CPUFrequency.load();
 
     LARGE_INTEGER now, freq;
@@ -398,7 +398,7 @@ float StatsV1::GETCPUFrequency() noexcept {
     return CPUFrequency.load();
 }
 
-float StatsV1::GETCPUtilization() noexcept {
+float Stats::GETCPUtilization() noexcept {
     if (!cpuUtilPrimed) {
         GetSystemTimes(&prevIdleTime, &prevKernelTime, &prevUserTime);
         cpuUtilPrimed = true;
@@ -430,29 +430,29 @@ float StatsV1::GETCPUtilization() noexcept {
     return CPUUtilization.load();
 }
 
-float StatsV1::GETRAMUsed() noexcept {
+float Stats::GETRAMUsed() noexcept {
     if (GlobalMemoryStatusEx(&memInfo)) {
         return static_cast<float>(memInfo.ullTotalPhys - memInfo.ullAvailPhys) / BYTES_TO_GB;
     }
     return 0.0f;
 }
 
-float StatsV1::GETRAMUtilization() noexcept {
+float Stats::GETRAMUtilization() noexcept {
     float used = GETRAMUsed();
     return RAMTotal > 0.0f ? (used / RAMTotal) * 100.0f : 0.0f;
 }
 
-const wchar_t* StatsV1::GETDiskName(int index) const noexcept {
+const wchar_t* Stats::GETDiskName(int index) const noexcept {
     if (index < 0 || index >= static_cast<int>(disks.size())) return L"";
     return disks[index].name.c_str();
 }
 
-float StatsV1::GETDiskTotal(int index) const noexcept {
+float Stats::GETDiskTotal(int index) const noexcept {
     if (index < 0 || index >= static_cast<int>(disks.size())) return 0.0f;
     return disks[index].totalGB;
 }
 
-float StatsV1::GETDiskUsed(int index) noexcept {
+float Stats::GETDiskUsed(int index) noexcept {
     if (index < 0 || index >= static_cast<int>(disks.size())) return 0.0f;
     const wchar_t* root = disks[index].name.c_str();
     ULARGE_INTEGER totalBytes, freeBytes;
@@ -463,18 +463,18 @@ float StatsV1::GETDiskUsed(int index) noexcept {
     return 0.0f;
 }
 
-float StatsV1::GETDiskUtilization(int index) noexcept {
+float Stats::GETDiskUtilization(int index) noexcept {
     float used = GETDiskUsed(index);
     float total = GETDiskTotal(index);
     return total > 0.0f ? (used / total) * 100.0f : 0.0f;
 }
 
-const wchar_t* StatsV1::GETGPUName(int index) const noexcept {
+const wchar_t* Stats::GETGPUName(int index) const noexcept {
     if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return L"";
     return gpuInstances[index].name.c_str();
 }
 
-float StatsV1::GETGPUUtilization(int index) noexcept {
+float Stats::GETGPUUtilization(int index) noexcept {
     if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0.0f;
 
     LARGE_INTEGER now, freq;
@@ -494,7 +494,7 @@ float StatsV1::GETGPUUtilization(int index) noexcept {
     return 0.0f;
 }
 
-bool StatsV1::InitWbem() noexcept {
+bool Stats::InitWbem() noexcept {
     HRESULT hres = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(hres) && hres != RPC_E_CHANGED_MODE) return false;
 
@@ -516,7 +516,7 @@ bool StatsV1::InitWbem() noexcept {
     return true;
 }
 
-void StatsV1::QueryGpuUtilWmi() noexcept {
+void Stats::QueryGpuUtilWmi() noexcept {
     if (!pWbemSvc) return;
 
     IEnumWbemClassObject* pEnum = nullptr;
@@ -556,7 +556,7 @@ void StatsV1::QueryGpuUtilWmi() noexcept {
     pEnum->Release();
 }
 
-float StatsV1::GETGPUVRAMUsed(int index) noexcept {
+float Stats::GETGPUVRAMUsed(int index) noexcept {
     if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0.0f;
     auto& gpu = gpuInstances[index];
     if (!gpu.vramQuery || !gpu.vramCounter) return gpu.cachedVRAMUsed;
@@ -569,39 +569,39 @@ float StatsV1::GETGPUVRAMUsed(int index) noexcept {
     return gpu.cachedVRAMUsed;
 }
 
-float StatsV1::GETGPUVRAMTotal(int index) const noexcept {
+float Stats::GETGPUVRAMTotal(int index) const noexcept {
     if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0.0f;
     return gpuInstances[index].vramTotalGB;
 }
 
-int StatsV1::GETGPUClockSpeed(int index) const noexcept {
+int Stats::GETGPUClockSpeed(int index) const noexcept {
     if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0;
     return gpuInstances[index].clockSpeedMHz;
 }
 
-float StatsV1::GETWiFiSend() noexcept {
+float Stats::GETWiFiSend() noexcept {
     return GetNetworkRate(wifi, wifi.sendCounter);
 }
 
-float StatsV1::GETWiFiReceive() noexcept {
+float Stats::GETWiFiReceive() noexcept {
     return GetNetworkRate(wifi, wifi.receiveCounter);
 }
 
-float StatsV1::GETEthernetSend() noexcept {
+float Stats::GETEthernetSend() noexcept {
     return GetNetworkRate(ethernet, ethernet.sendCounter);
 }
 
-float StatsV1::GETEthernetReceive() noexcept {
+float Stats::GETEthernetReceive() noexcept {
     return GetNetworkRate(ethernet, ethernet.receiveCounter);
 }
 
-void StatsV1::SetDiskEnabled(int index, bool enabled) noexcept {
+void Stats::SetDiskEnabled(int index, bool enabled) noexcept {
     if (index >= 0 && index < static_cast<int>(disks.size())) {
         disks[index].enabled = enabled;
     }
 }
 
-void StatsV1::SetAdapterEnabled(int index, bool enabled) noexcept {
+void Stats::SetAdapterEnabled(int index, bool enabled) noexcept {
     if (index >= 0 && index < static_cast<int>(adapterInfos.size())) {
         adapterInfos[index].enabled = enabled;
     }

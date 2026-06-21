@@ -20,11 +20,11 @@ extern int testFailed;
     else { printf("FAIL  (line %d: %.1f not in [%.1f,%.1f])\n", __LINE__, (float)(val), (float)(lo), (float)(hi)); testFailed++; } \
 } while(0)
 
-void RunCPUTests(class StatsV1& stats);
-void RunRAMTests(class StatsV1& stats);
-void RunDiskTests(class StatsV1& stats);
-void RunNetworkTests(class StatsV1& stats);
-void RunGPUTests(class StatsV1& stats);
+void RunCPUTests(class Stats& stats);
+void RunRAMTests(class Stats& stats);
+void RunDiskTests(class Stats& stats);
+void RunNetworkTests(class Stats& stats);
+void RunGPUTests(class Stats& stats);
 void RunGraphicsTests();
 
 #endif

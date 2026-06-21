@@ -1,9 +1,9 @@
-#ifndef THEMEV1_H
-#define THEMEV1_H
+#ifndef THEME_H
+#define THEME_H
 
 #include "raylib.h"
 
-struct ThemeV1 {
+struct Theme {
     Color windowBg;
     Color tileBg;
     Color tileBorder;
@@ -28,8 +28,8 @@ struct ThemeV1 {
     Color toggleInactive;
     Color scrollbarColor;
 
-    static ThemeV1 Dark() {
-        ThemeV1 t;
+    static Theme Dark() {
+        Theme t;
         t.windowBg       = { 16,  16,  20, 255};
         t.tileBg         = { 24,  24,  32, 255};
         t.tileBorder     = { 44,  44,  56, 255};
@@ -56,8 +56,8 @@ struct ThemeV1 {
         return t;
     }
 
-    static ThemeV1 Light() {
-        ThemeV1 t;
+    static Theme Light() {
+        Theme t;
         t.windowBg       = { 238, 238, 244, 255};
         t.tileBg         = { 250, 250, 254, 255};
         t.tileBorder     = { 210, 210, 220, 255};
@@ -84,8 +84,8 @@ struct ThemeV1 {
         return t;
     }
 
-    static ThemeV1 HighContrast() {
-        ThemeV1 t;
+    static Theme HighContrast() {
+        Theme t;
         t.windowBg       = {   0,   0,   0, 255};
         t.tileBg         = {   8,   8,   8, 255};
         t.tileBorder     = { 255, 255, 255, 255};

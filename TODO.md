@@ -1,61 +1,79 @@
-# TODO — Performance Monitor
+# TODO â€” Performance Monitor
 
 ## Status
 
 Build: `cmake -B build && cmake --build build --config Release`
-Tests: `build\Release\perfmon_tests.exe` — 63 passed, 0 failed
+Tests: `build\Release\perfmon_tests.exe` â€” 63 passed, 0 failed
 
 ---
 
-## Completed (Phases 0–11)
+## Completed (Phases 0â€“12)
 
 All major features complete: CPU/RAM/GPU/Disk/Network monitoring, tile dashboard with drag-to-arrange, 3 themes with config persistence, F2 diagnostics, F3 settings, F4 CSV logging, 63-test suite, production-ready module split with centralized design system.
 
 ### [x] GPU VRAM counter cross-wired between GPUs
-**Files:** `StatsV1.cpp` (PDH VRAM setup)
-**Fix:** Replaced index-based matching with LUID-based matching for `\GPU Adapter Memory(*)\Dedicated Usage` PDH counters (same approach as `QueryGpuUtilWmi`). PDH enumeration order can differ from DXGI adapter order; LUID substring matching ensures each GPU gets the correct VRAM counter regardless of enumeration order or post-sort reordering.
+**Files:** `Stats.cpp` (PDH VRAM setup)
+**Fix:** PDH VRAM counter attachment now happens BEFORE the GPU sort by vramTotalGB. Previously, PDH `\GPU Adapter Memory(*)\Dedicated Usage` counters were attached after the sort, causing physical-adapter-index mismatches (Intel iGPU got NVIDIA's VRAM counter and vice versa).
 
 ### [x] GPU model text missing from tile
 **Files:** `Rendering.h` (renderGPUTile)
-**Fix:** Added model name text rendering above the gauge in `renderGPUTile`, matching the `renderCPUTile` model text pattern (auto-shrinking font, `theme.textSecondary` color).
+**Fix:** Model text removed from GPU tile (simplified to gauge + 2 bars). GPU tile now shows utilization gauge + VRAM bar + Clock bar.
+
+### [x] GPU utilization always 0 (PDH `_Total` counter missing)
+**Files:** `Stats.cpp` (GETGPUUtilization, QueryGpuUtilWmi, InitWbem)
+**Fix:** Replaced PDH `\GPU Engine` per-process counter approach with WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` â€” aggregates all per-engine utilization by LUID. PDH GPU Engine counters (`_Total` aggregate) don't exist on many Windows 10/11 systems, and per-process counters return 0 at idle. WMI approach sums all engine instances per GPU for a meaningful aggregate.
+
+### [x] GPU discovery via DXGI-first (always works)
+**Files:** `Stats.cpp` (constructor GPU init)
+**Fix:** GPU instances now created from DXGI `EnumAdapters` (always available), with PDH VRAM and WMI utilization as optional layers. Ensures GPU tile always shows model + total VRAM even if PDH/WMI fail.
+
+### [x] RAM tile missing used/total bar
+**Files:** `Rendering.h` (renderRAMTile), `WindowManager.h` (collectBarData, renderTileContent)
+**Fix:** Added bar showing `used / total GB` beneath the gauge, splitting content 50/50. Uses `bars[15]`.
+
+### [x] F2 diagnostics GPU section formatting
+**Files:** `Overlays.h` (drawDiagnosticsOverlay)
+**Fix:** VRAM and Clock lines now have proper "VRAM:" / "Clock:" labels in white (textPrimary), matching other section formatting.
+
+### [x] GPU gauge value not set consistently
+**Files:** `WindowManager.h` (collectBarData), `Rendering.h` (renderGPUTile)
+**Fix:** `gaugeGPU.setValue()` moved to `collectBarData` (alongside CPU/RAM gauges). Previously only set in `renderGPUTile`, risking missed updates.
 
 ---
 
 ## Known Issues
 
 ### [ ] CPU frequency reports 0 on some systems
-**Files:** `StatsV1.cpp` (GETCPUFrequency)
+**Files:** `Stats.cpp` (GETCPUFrequency)
 **Symptoms:** CPU frequency bar shows 0.0. CPU utilization still works.
 **Fix:** Fallback to registry base frequency or `\Processor(_Total)\% Processor Performance`.
 
+### [âš  fixed] GPU utilization + VRAM not working on many systems
+**Fix:** DXGI-first GPU discovery + WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` aggregation replaces PDH `\GPU Engine(*)` (no `_Total` aggregate, per-process counters near zero). PDH VRAM counter attachment order fixed (before sort).
+
 ### [ ] CPU model text truncated for very long names
-**Files:** `TileRenderer.h` (renderCPUTile)
+**Files:** `Rendering.h` (renderCPUTile)
 **Symptoms:** Font auto-shrinks to a minimum; at small tile sizes text unreadable.
 **Fix:** Multi-line text or marquee scrolling on small tiles.
 
-### [ ] GPU PDH counter may not exist on all systems
-**Files:** `StatsV1.cpp` (GPU initialization)
-**Symptoms:** `GETGPUCount()` returns 0, GPU tile shows nothing.
-**Fix:** Fallback to D3DKMTQueryStatistics or vendor APIs (nvapi, ADL).
-
 ### [ ] Network adapter names contain PDH instance junk
-**Files:** `StatsV1.cpp` (FindNetworkAdapters)
+**Files:** `Stats.cpp` (FindNetworkAdapters)
 **Fix:** Clean names or use IP Helper API (GetAdaptersAddresses) for friendly names.
 
 ### [ ] Per-disk enabled state not persisted in config
-**Files:** `ConfigV1.h/.cpp`, `main.cpp`
+**Files:** `Config.h/.cpp`, `main.cpp`
 **Fix:** Save/load disk/adapter enabled arrays.
 
 ### [ ] Disabled disks still counted in `GETDiskCount()`
-**Files:** `StatsV1.h`
+**Files:** `Stats.h`
 **Fix:** Add `GETEnabledDiskCount()`.
 
 ### [ ] F3 per-adapter toggles don't affect data collection
-**Files:** `main.cpp` (updateStats), `StatsV1.h/.cpp`
+**Files:** `main.cpp` (updateStats), `Stats.h/.cpp`
 **Fix:** Add per-adapter enabled checks in GETWiFi/GETEthernet methods.
 
 ### [ ] Resize grip hitbox (16x16) small on high-DPI
-**Files:** `TileV1.h` (handleDrag)
+**Files:** `Tile.h` (handleDrag)
 **Fix:** Scale grip hitbox by screen DPI.
 
 ---
@@ -63,11 +81,11 @@ All major features complete: CPU/RAM/GPU/Disk/Network monitoring, tile dashboard
 ## Future Work
 
 ### [ ] GPU display name in tile bar labels
-**Priority:** Low | **Files:** `StatsV1.h/.cpp`, `TileRenderer.h`
+**Priority:** Low | **Files:** `Stats.h/.cpp`, `TileRenderer.h`
 GPUInstance::displayName exists but not yet exposed. Add `GetGPUDisplayName(int)` and use in GPU tile.
 
 ### [ ] Temperature monitoring (CPU/GPU)
-**Priority:** Medium | **Files:** `StatsV1.h/.cpp`
+**Priority:** Medium | **Files:** `Stats.h/.cpp`
 Via registry, MSR, nvapi/ADL, or WMI. Not all systems expose thermal data.
 
 ### [ ] System tray minimize
@@ -79,15 +97,15 @@ Use `Shell_NotifyIconW`, hook WM_SIZE via raylib's GLFW window.
 Store last N values in ring buffer, draw polyline below gauge.
 
 ### [ ] Configurable grid layout
-**Priority:** Medium | **Files:** `LayoutConfig.h`, `ConfigV1.h`
+**Priority:** Medium | **Files:** `LayoutConfig.h`, `Config.h`
 Move grid config to config file, allow dynamic tile add/remove.
 
 ### [ ] Dark/Light mode auto-detection
 **Priority:** Low | **Files:** `main.cpp`
 Read `HKCU\...\AppsUseLightTheme` registry value at startup.
 
-### [ ] BarV1 color gradient fill
-**Priority:** Low | **Files:** `BarV1.cpp`
+### [ ] Bar color gradient fill
+**Priority:** Low | **Files:** `Bar.cpp`
 Use `DrawRectangleGradientH` with endColor in Theme.
 
 ### [ ] Window resize snapping / preset sizes

@@ -17,21 +17,21 @@ FetchContent_MakeAvailable(raylib)
 # --- Source files ---
 set(SOURCES
     src/main.cpp
-    src/BarV1.cpp
-    src/GaugeV1.cpp
-    src/StatsV1.cpp
-    src/ConfigV1.cpp
-    src/LoggerV1.cpp
+    src/Bar.cpp
+    src/Gauge.cpp
+    src/Stats.cpp
+    src/Config.cpp
+    src/Logger.cpp
 )
 
 set(HEADERS
-    src/BarV1.h
-    src/GaugeV1.h
-    src/StatsV1.h
-    src/ConfigV1.h
-    src/LoggerV1.h
-    src/TileV1.h
-    src/ThemeV1.h
+    src/Bar.h
+    src/Gauge.h
+    src/Stats.h
+    src/Config.h
+    src/Logger.h
+    src/Tile.h
+    src/Theme.h
     src/Rendering.h
     src/LandingPage.h
     src/Overlays.h
@@ -60,9 +60,9 @@ set(TEST_SOURCES
     src/tests/test_gpu.cpp
     src/tests/test_network.cpp
     src/tests/test_graphics.cpp
-    src/BarV1.cpp
-    src/GaugeV1.cpp
-    src/StatsV1.cpp
+    src/Bar.cpp
+    src/Gauge.cpp
+    src/Stats.cpp
 )
 
 add_executable(perfmon_tests ${TEST_SOURCES} ${HEADERS})

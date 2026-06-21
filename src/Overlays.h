@@ -2,15 +2,15 @@
 #define OVERLAYS_H
 
 #include "raylib.h"
-#include "StatsV1.h"
+#include "Stats.h"
 #include "Rendering.h"
-#include "ThemeV1.h"
+#include "Theme.h"
 #include <cstdio>
 #include <string>
 #include <algorithm>
 
-inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, int fontSize,
-                                   const StatsV1& stats, const StatsData& local) {
+inline void drawDiagnosticsOverlay(const Theme& activeTheme, int sw, int sh, int fontSize,
+                                   const Stats& stats, const StatsData& local) {
     static float scrollOffset = 0.0f;
     int panelW = sw * 4 / 5, panelH = sh * 4 / 5;
     if (panelW < 420) panelW = 420;
@@ -202,7 +202,7 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
     EndScissorMode();
 }
 
-inline void drawSettingsOverlay(const ThemeV1& activeTheme, int sw, int sh, int fontSize, StatsV1& stats,
+inline void drawSettingsOverlay(const Theme& activeTheme, int sw, int sh, int fontSize, Stats& stats,
                                 bool tileEnabled[5]) {
     static float settingsScroll = 0.0f;
     int panelW = 370, panelH = sh * 4 / 5;

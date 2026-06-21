@@ -1,8 +1,8 @@
-#ifndef TILEV1_H
-#define TILEV1_H
+#ifndef TILE_H
+#define TILE_H
 
 #include "raylib.h"
-#include "ThemeV1.h"
+#include "Theme.h"
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -34,7 +34,7 @@ struct LayoutConfig {
     static constexpr int maxTiles = 5;
 };
 
-class TileV1 {
+class Tile {
 public:
     TileConfig config;
     Rectangle bounds;
@@ -55,8 +55,8 @@ public:
     };
     std::vector<DisplacedPreview> displacedPreviews;
 
-    TileV1() : config{}, bounds{}, snapPreview{} {}
-    TileV1(const TileConfig& cfg) : config(cfg), bounds{}, snapPreview{} {}
+    Tile() : config{}, bounds{}, snapPreview{} {}
+    Tile(const TileConfig& cfg) : config(cfg), bounds{}, snapPreview{} {}
 
     void computeBounds(int screenW, int screenH, int gridCols, int gridRows, float padding = 10.0f) {
         if (bounds.width > 0.0f && bounds.height > 0.0f && screenW == lastScreenW && screenH == lastScreenH) return;
@@ -70,7 +70,7 @@ public:
         bounds.height = cellH * config.spanRows - padding * 2;
     }
 
-    void drawFrame(const ThemeV1& theme, float tileFontSize) const {
+    void drawFrame(const Theme& theme, float tileFontSize) const {
         if (bounds.width < 20.0f) return;
 
         Rectangle shadowRect = {bounds.x + 3, bounds.y + 3, bounds.width, bounds.height};
@@ -122,7 +122,7 @@ public:
             beingResized ? theme.accentColor : theme.textMuted);
     }
 
-    void drawSnapPreview(const ThemeV1& theme) const {
+    void drawSnapPreview(const Theme& theme) const {
         if (!hasSnapPreview) return;
         Color ghostFill = {theme.accentColor.r, theme.accentColor.g, theme.accentColor.b, 50};
         DrawRectangleRounded(snapPreview, 0.06f, 12, ghostFill);
@@ -158,11 +158,11 @@ public:
         return bounds.width * 0.88f;
     }
 
-    // ─── Cell-based grid operations ───────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Cell-based grid operations Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     static constexpr int kMaxGrid = 8;
 
-    static void buildOccupancy(const std::vector<TileV1>& tiles, int excludeIdx,
+    static void buildOccupancy(const std::vector<Tile>& tiles, int excludeIdx,
                                bool occupied[kMaxGrid][kMaxGrid], int gridRows, int gridCols) {
         for (int r = 0; r < gridRows; r++)
             for (int c = 0; c < gridCols; c++)
@@ -283,7 +283,7 @@ public:
         bounds.height = cellH * cfg.spanRows - padding * 2;
     }
 
-    static bool anyPixelOverlaps(const std::vector<TileV1>& tiles) {
+    static bool anyPixelOverlaps(const std::vector<Tile>& tiles) {
         for (int i = 0; i < static_cast<int>(tiles.size()); i++) {
             for (int j = i + 1; j < static_cast<int>(tiles.size()); j++) {
                 if (CheckCollisionRecs(tiles[i].bounds, tiles[j].bounds))
@@ -302,7 +302,7 @@ public:
         std::vector<std::pair<int, TileConfig>> displacedTiles; // index, new config
     };
 
-    static PlacementResult tryPlaceTile(const std::vector<TileV1>& tiles, int draggedIdx,
+    static PlacementResult tryPlaceTile(const std::vector<Tile>& tiles, int draggedIdx,
                                         int targetRow, int targetCol, int targetSpanCols, int targetSpanRows,
                                         int gridRows, int gridCols) {
         PlacementResult result = {false, 0, 0, 0, 0, {}};
@@ -397,9 +397,9 @@ public:
         return result;
     }
 
-    // ─── Drag and resize handling ─────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Drag and resize handling Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-    void handleDrag(Vector2 mousePos, int screenW, int screenH, std::vector<TileV1>& others,
+    void handleDrag(Vector2 mousePos, int screenW, int screenH, std::vector<Tile>& others,
                     int gridCols, int gridRows) {
         if (!beingDragged && !beingResized) {
             Rectangle grip = {bounds.x + bounds.width - 16.0f, bounds.y + bounds.height - 16.0f, 16.0f, 16.0f};
@@ -446,7 +446,7 @@ public:
     }
 
     void updateGhostPreview(int screenW, int screenH, int gridCols, int gridRows, float padding,
-                            const std::vector<TileV1>& others) {
+                            const std::vector<Tile>& others) {
         float cellW = static_cast<float>(screenW) / gridCols;
         float cellH = static_cast<float>(screenH) / gridRows;
 
@@ -485,7 +485,7 @@ public:
     }
 
     void commitPlacement(int screenW, int screenH, int gridCols, int gridRows,
-                         float padding, std::vector<TileV1>& others) {
+                         float padding, std::vector<Tile>& others) {
         float cellW = static_cast<float>(screenW) / gridCols;
         float cellH = static_cast<float>(screenH) / gridRows;
 
@@ -522,7 +522,7 @@ public:
             bounds.height = cellH * pr.finalSpanRows - padding * 2;
 
             for (const auto& dp : pr.displacedTiles) {
-                TileV1& other = others[dp.first];
+                Tile& other = others[dp.first];
                 other.config = dp.second;
                 computePixelBounds(other.config, other.bounds, screenW, screenH, gridCols, gridRows, padding);
                 other.lastScreenW = screenW;
@@ -541,7 +541,7 @@ public:
                 bounds.height = cellH * originalSpanRows - padding * 2;
 
                 for (const auto& dp : pr.displacedTiles) {
-                    TileV1& other = others[dp.first];
+                    Tile& other = others[dp.first];
                     other.config = displacedOriginals[dp.first];
                     computePixelBounds(other.config, other.bounds, screenW, screenH, gridCols, gridRows, padding);
                     other.lastScreenW = screenW;
@@ -562,27 +562,27 @@ public:
         displacedPreviews.clear();
     }
 
-    static std::vector<TileV1> createDefaultTiles() {
-        std::vector<TileV1> tiles;
+    static std::vector<Tile> createDefaultTiles() {
+        std::vector<Tile> tiles;
         {
             TileConfig cfg = {0, 0, 2, 2, 1, 2, "CPU"};
-            tiles.push_back(TileV1(cfg));
+            tiles.push_back(Tile(cfg));
         }
         {
             TileConfig cfg = {0, 2, 2, 1, 1, 1, "RAM"};
-            tiles.push_back(TileV1(cfg));
+            tiles.push_back(Tile(cfg));
         }
         {
             TileConfig cfg = {2, 0, 2, 2, 1, 2, "GPU"};
-            tiles.push_back(TileV1(cfg));
+            tiles.push_back(Tile(cfg));
         }
         {
             TileConfig cfg = {2, 2, 2, 1, 1, 2, "Network"};
-            tiles.push_back(TileV1(cfg));
+            tiles.push_back(Tile(cfg));
         }
         {
             TileConfig cfg = {0, 3, 4, 1, 2, 1, "Storage"};
-            tiles.push_back(TileV1(cfg));
+            tiles.push_back(Tile(cfg));
         }
         return tiles;
     }

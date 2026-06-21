@@ -1,7 +1,7 @@
 #include "test_harness.h"
-#include "StatsV1.h"
+#include "Stats.h"
 
-void RunDiskTests(StatsV1& stats) {
+void RunDiskTests(Stats& stats) {
     printf("\n[Disk Tests]\n");
 
     TEST("GETDiskCount > 0");

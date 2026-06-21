@@ -1,13 +1,13 @@
-#include "LoggerV1.h"
+#include "Logger.h"
 #include <ctime>
 
-LoggerV1::LoggerV1() noexcept {}
+Logger::Logger() noexcept {}
 
-LoggerV1::~LoggerV1() noexcept {
+Logger::~Logger() noexcept {
     stop();
 }
 
-bool LoggerV1::start(const wchar_t* basePath) noexcept {
+bool Logger::start(const wchar_t* basePath) noexcept {
     if (mFile) stop();
 
     mPath = basePath;
@@ -27,14 +27,14 @@ bool LoggerV1::start(const wchar_t* basePath) noexcept {
     return true;
 }
 
-void LoggerV1::stop() noexcept {
+void Logger::stop() noexcept {
     if (mFile) {
         fclose(mFile);
         mFile = nullptr;
     }
 }
 
-void LoggerV1::writeRow(float cpuFreq, float cpuUtil, float ramUsed, float ramUtil,
+void Logger::writeRow(float cpuFreq, float cpuUtil, float ramUsed, float ramUtil,
                          float gpuUtil, float wifiSend, float wifiRecv,
                          float ethSend, float ethRecv) noexcept {
     if (!mFile) return;

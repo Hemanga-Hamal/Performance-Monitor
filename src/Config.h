@@ -1,5 +1,5 @@
-#ifndef CONFIGV1_H
-#define CONFIGV1_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include <windows.h>
 #include <string>
@@ -13,12 +13,12 @@ struct AppConfig {
     int windowH{800};
 };
 
-class ConfigV1 {
+class Config {
 public:
-    ConfigV1() noexcept;
+    Config() noexcept;
 
-    ConfigV1(const ConfigV1&) = delete;
-    ConfigV1& operator=(const ConfigV1&) = delete;
+    Config(const Config&) = delete;
+    Config& operator=(const Config&) = delete;
 
     [[nodiscard]] bool load() noexcept;
     [[nodiscard]] bool save(const AppConfig& cfg) noexcept;

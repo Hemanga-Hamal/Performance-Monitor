@@ -1,11 +1,11 @@
-#ifndef BARV1_H
-#define BARV1_H
+#ifndef BAR_H
+#define BAR_H
 
 #include "raylib.h"
 #include <string>
 #include <algorithm>
 
-class BarV1 {
+class Bar {
 public:
     struct Theme {
         Color barBackgroundColor;
@@ -33,7 +33,7 @@ public:
         Config(float val, float maxVal);
     };
 
-    BarV1(const Theme& theme, const Dimensions& dimensions, const Config& config);
+    Bar(const Theme& theme, const Dimensions& dimensions, const Config& config);
 
     void draw(Vector2 centre, const std::string& label, const std::string& numb) const;
     void drawInRect(Rectangle bounds, const std::string& label, const std::string& numb) const;

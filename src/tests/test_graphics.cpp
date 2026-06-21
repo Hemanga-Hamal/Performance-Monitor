@@ -6,8 +6,8 @@
 #include <windows.h>
 #include "raylib.h"
 #include "test_harness.h"
-#include "BarV1.h"
-#include "GaugeV1.h"
+#include "Bar.h"
+#include "Gauge.h"
 
 void RunGraphicsTests() {
     printf("\n[Graphics Tests]\n");
@@ -15,30 +15,30 @@ void RunGraphicsTests() {
     InitWindow(200, 200, "Test");
     SetWindowState(FLAG_WINDOW_HIDDEN);
 
-    // BarV1 Tests
-    printf("  [BarV1]\n");
+    // Bar Tests
+    printf("  [Bar]\n");
 
     TEST("  Theme defaults");
-    BarV1::Theme btheme;
+    Bar::Theme btheme;
     CHECK(true);
 
     TEST("  Dimensions defaults");
-    BarV1::Dimensions bdims;
+    Bar::Dimensions bdims;
     CHECK(bdims.barWidth == 300.0f);
 
     TEST("  Config defaults");
-    BarV1::Config bcfg;
+    Bar::Config bcfg;
     CHECK(bcfg.value == 0.0f);
     CHECK(bcfg.maxValue == 100.0f);
     CHECK(bcfg.autoScale == true);
 
     TEST("  Config value constructor");
-    BarV1::Config bcfg2(50.0f, 200.0f);
+    Bar::Config bcfg2(50.0f, 200.0f);
     CHECK_EQ(bcfg2.value, 50.0f);
     CHECK_EQ(bcfg2.maxValue, 200.0f);
 
-    TEST("  BarV1 constructor");
-    BarV1 bar(btheme, bdims, bcfg);
+    TEST("  Bar constructor");
+    Bar bar(btheme, bdims, bcfg);
     CHECK(true);
 
     TEST("  setValue updates config");
@@ -62,42 +62,42 @@ void RunGraphicsTests() {
 
     CloseWindow();
 
-    // GaugeV1 Tests
-    printf("  [GaugeV1]\n");
+    // Gauge Tests
+    printf("  [Gauge]\n");
 
     TEST("  clamp helper low");
-    CHECK_EQ(GaugeV1::clamp(-5.0f, 0.0f, 100.0f), 0.0f);
+    CHECK_EQ(Gauge::clamp(-5.0f, 0.0f, 100.0f), 0.0f);
 
     TEST("  clamp helper high");
-    CHECK_EQ(GaugeV1::clamp(150.0f, 0.0f, 100.0f), 100.0f);
+    CHECK_EQ(Gauge::clamp(150.0f, 0.0f, 100.0f), 100.0f);
 
     TEST("  clamp helper in range");
-    CHECK_EQ(GaugeV1::clamp(50.0f, 0.0f, 100.0f), 50.0f);
+    CHECK_EQ(Gauge::clamp(50.0f, 0.0f, 100.0f), 50.0f);
 
     TEST("  Theme defaults");
-    GaugeV1::Theme gtheme;
+    Gauge::Theme gtheme;
     CHECK(true);
 
     TEST("  Dimensions defaults");
-    GaugeV1::Dimensions gdims;
+    Gauge::Dimensions gdims;
     CHECK(gdims.baseSize == 200.0f);
 
     TEST("  Config defaults");
-    GaugeV1::Config gcfg;
+    Gauge::Config gcfg;
     CHECK(gcfg.startAngle == 150.0f);
 
     TEST("  ConfigArc preset");
-    GaugeV1::Config arcCfg = GaugeV1::Config::ConfigArc();
+    Gauge::Config arcCfg = Gauge::Config::ConfigArc();
     CHECK_EQ(arcCfg.startAngle, 150.0f);
     CHECK_EQ(arcCfg.totalAngle, 240.0f);
 
     TEST("  ConfigQuarter preset");
-    GaugeV1::Config qtrCfg = GaugeV1::Config::ConfigQuarter();
+    Gauge::Config qtrCfg = Gauge::Config::ConfigQuarter();
     CHECK_EQ(qtrCfg.startAngle, 90.0f);
     CHECK_EQ(qtrCfg.totalAngle, 270.0f);
 
-    TEST("  GaugeV1 constructor");
-    GaugeV1 gauge(gtheme, gdims, gcfg);
+    TEST("  Gauge constructor");
+    Gauge gauge(gtheme, gdims, gcfg);
     CHECK(true);
 
     TEST("  setValue clamps 0-100");
@@ -124,16 +124,16 @@ void RunGraphicsTests() {
     SetWindowState(FLAG_WINDOW_HIDDEN);
 
     TEST("  calculateGaugeSize > 0 (auto scale)");
-    GaugeV1::Config autoCfg = GaugeV1::Config::ConfigArc();
-    GaugeV1 gaugeAuto(gtheme, gdims, autoCfg);
+    Gauge::Config autoCfg = Gauge::Config::ConfigArc();
+    Gauge gaugeAuto(gtheme, gdims, autoCfg);
     CHECK(gaugeAuto.calculateGaugeSize() > 0.0f);
 
     TEST("  calculateGaugeSize > 0 (fixed)");
-    GaugeV1::Config fixedCfg;
+    Gauge::Config fixedCfg;
     fixedCfg.autoScale = false;
     fixedCfg.startAngle = 150.0f;
     fixedCfg.totalAngle = 240.0f;
-    GaugeV1 gaugeFixed(gtheme, gdims, fixedCfg);
+    Gauge gaugeFixed(gtheme, gdims, fixedCfg);
     CHECK(gaugeFixed.calculateGaugeSize() > 0.0f);
 
     CloseWindow();

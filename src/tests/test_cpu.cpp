@@ -1,7 +1,7 @@
 #include "test_harness.h"
-#include "StatsV1.h"
+#include "Stats.h"
 
-void RunCPUTests(StatsV1& stats) {
+void RunCPUTests(Stats& stats) {
     printf("\n[CPU Tests]\n");
 
     TEST("GETCPUFrequency >= 0");

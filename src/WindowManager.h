@@ -8,13 +8,13 @@
 
 #include <windows.h>
 #include "raylib.h"
-#include "StatsV1.h"
-#include "BarV1.h"
-#include "GaugeV1.h"
-#include "ThemeV1.h"
-#include "TileV1.h"
-#include "ConfigV1.h"
-#include "LoggerV1.h"
+#include "Stats.h"
+#include "Bar.h"
+#include "Gauge.h"
+#include "Theme.h"
+#include "Tile.h"
+#include "Config.h"
+#include "Logger.h"
 #include "Rendering.h"
 #include "LandingPage.h"
 #include "Overlays.h"
@@ -38,15 +38,15 @@ public:
 private:
     StatsData statsData;
     std::atomic<bool> dataRunning{true};
-    StatsV1 stats;
+    Stats stats;
     AppState appState{LANDING};
-    ThemeV1 activeTheme{ThemeV1::Dark()};
+    Theme activeTheme{Theme::Dark()};
     int selectedThemeIndex{0};
     bool showDiagnostics{false};
     bool showSettings{false};
     bool tileEnabled[5]{true, true, true, true, true};
     bool loggingEnabled{false};
-    LoggerV1 logger;
+    Logger logger;
 
     void updateStats() {
         bool wroteModels = false;
@@ -83,7 +83,7 @@ private:
     }
 
     void renderLoop() {
-        ConfigV1 configManager;
+        Config configManager;
         (void)configManager.load();
         const AppConfig& appCfg = configManager.get();
 
@@ -96,7 +96,7 @@ private:
 
         if (appCfg.themeIndex >= 0 && appCfg.themeIndex <= 2) {
             selectedThemeIndex = appCfg.themeIndex;
-            const ThemeV1 themes[] = {ThemeV1::Dark(), ThemeV1::Light(), ThemeV1::HighContrast()};
+            const Theme themes[] = {Theme::Dark(), Theme::Light(), Theme::HighContrast()};
             activeTheme = themes[appCfg.themeIndex];
         }
         for (int i = 0; i < 5; i++) tileEnabled[i] = appCfg.tileEnabled[i];
@@ -104,19 +104,19 @@ private:
             SetWindowPosition(appCfg.windowX, appCfg.windowY);
         }
 
-        GaugeV1::Dimensions gaugeDims;
-        GaugeV1 gaugeCPU(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, GaugeV1::Config::ConfigArc());
-        GaugeV1 gaugeRAM(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, GaugeV1::Config::ConfigQuarter());
-        GaugeV1 gaugeGPU(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, GaugeV1::Config::ConfigArc());
+        Gauge::Dimensions gaugeDims;
+        Gauge gaugeCPU(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, Gauge::Config::ConfigArc());
+        Gauge gaugeRAM(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, Gauge::Config::ConfigQuarter());
+        Gauge gaugeGPU(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, Gauge::Config::ConfigArc());
 
-        BarV1::Theme barTheme = DesignSystem::makeBarTheme(activeTheme);
-        BarV1::Dimensions barDims;
-        BarV1::Config barCfg;
+        Bar::Theme barTheme = DesignSystem::makeBarTheme(activeTheme);
+        Bar::Dimensions barDims;
+        Bar::Config barCfg;
         barCfg.autoScale = false;
-        std::vector<BarV1> bars;
+        std::vector<Bar> bars;
         for (int i = 0; i < 16; i++) bars.emplace_back(barTheme, barDims, barCfg);
 
-        std::vector<TileV1> tiles = TileV1::createDefaultTiles();
+        std::vector<Tile> tiles = Tile::createDefaultTiles();
         const int gridCols = LayoutConfig::gridCols;
         const int gridRows = LayoutConfig::gridRows;
 
@@ -217,8 +217,8 @@ private:
         }
     }
 
-    void collectBarData(const StatsData& local, std::vector<BarV1>& bars,
-                        GaugeV1& gaugeCPU, GaugeV1& gaugeRAM, GaugeV1& gaugeGPU) {
+    void collectBarData(const StatsData& local, std::vector<Bar>& bars,
+                        Gauge& gaugeCPU, Gauge& gaugeRAM, Gauge& gaugeGPU) {
         gaugeCPU.setValue(local.CPU_Util);
         gaugeRAM.setValue(local.RAM_Util);
         gaugeGPU.setValue(local.GPU_Util[0]);
@@ -231,7 +231,7 @@ private:
         bars[15].setValue(local.RAM_Util);
     }
 
-    static int tileIndex(const TileV1& tile) {
+    static int tileIndex(const Tile& tile) {
         if (tile.config.title == "CPU") return 0;
         if (tile.config.title == "RAM") return 1;
         if (tile.config.title == "GPU") return 2;
@@ -240,8 +240,8 @@ private:
         return -1;
     }
 
-    void renderTileContent(TileV1& tile, const StatsData& local, std::vector<BarV1>& bars,
-                           GaugeV1& gaugeCPU, GaugeV1& gaugeRAM, GaugeV1& gaugeGPU, int fontSize) {
+    void renderTileContent(Tile& tile, const StatsData& local, std::vector<Bar>& bars,
+                           Gauge& gaugeCPU, Gauge& gaugeRAM, Gauge& gaugeGPU, int fontSize) {
         if (tile.config.title == "CPU")
             renderCPUTile(tile, activeTheme, local, stats, gaugeCPU, bars[0]);
         else if (tile.config.title == "RAM")
@@ -268,7 +268,7 @@ private:
         DrawText("F2:Diag  F3:Settings  F4:Log", 12, sh - barH + 6, statusFont, activeTheme.textMuted);
     }
 
-    void saveConfig(ConfigV1& configManager) {
+    void saveConfig(Config& configManager) {
         AppConfig saveCfg;
         saveCfg.themeIndex = selectedThemeIndex;
         for (int i = 0; i < 5; i++) saveCfg.tileEnabled[i] = tileEnabled[i];

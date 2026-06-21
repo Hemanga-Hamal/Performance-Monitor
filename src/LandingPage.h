@@ -2,13 +2,13 @@
 #define LANDINGPAGE_H
 
 #include "raylib.h"
-#include "ThemeV1.h"
+#include "Theme.h"
 #include <algorithm>
 
 enum AppState { LANDING, DASHBOARD };
 
-inline void drawLandingPage(const ThemeV1& activeTheme, int sw, int sh, int titleSize, int fontSize,
-                            int& selectedThemeIndex, ThemeV1& activeThemeRef, AppState& appState) {
+inline void drawLandingPage(const Theme& activeTheme, int sw, int sh, int titleSize, int fontSize,
+                            int& selectedThemeIndex, Theme& activeThemeRef, AppState& appState) {
     ClearBackground(activeTheme.landingBg);
 
     int heroY = sh / 5;
@@ -23,7 +23,7 @@ inline void drawLandingPage(const ThemeV1& activeTheme, int sw, int sh, int titl
     DrawText(subtitle, (sw - subW) / 2, heroY + titleFont + 20, subFont, activeTheme.textSecondary);
 
     const char* themeNames[] = {"Dark", "Light", "High Contrast"};
-    ThemeV1 themePreviews[] = {ThemeV1::Dark(), ThemeV1::Light(), ThemeV1::HighContrast()};
+    Theme themePreviews[] = {Theme::Dark(), Theme::Light(), Theme::HighContrast()};
 
     float cardScale = (std::min)(sw / 1300.0f, sh / 850.0f);
     cardScale = (std::max)((std::min)(cardScale, 2.0f), 0.5f);

@@ -1,4 +1,4 @@
-#include "ConfigV1.h"
+#include "Config.h"
 #include <shlobj.h>
 #include <cstdio>
 #include <algorithm>
@@ -7,11 +7,11 @@ namespace {
     constexpr const wchar_t* CONFIG_FILENAME = L"\\PerfMon\\config.ini";
 }
 
-ConfigV1::ConfigV1() noexcept {
+Config::Config() noexcept {
     resolvePath();
 }
 
-void ConfigV1::resolvePath() noexcept {
+void Config::resolvePath() noexcept {
     wchar_t appData[MAX_PATH] = {};
     if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, appData))) {
         mFilePath = appData;
@@ -24,7 +24,7 @@ void ConfigV1::resolvePath() noexcept {
     }
 }
 
-bool ConfigV1::load() noexcept {
+bool Config::load() noexcept {
     if (mFilePath.empty()) return false;
 
     FILE* f = nullptr;
@@ -58,7 +58,7 @@ bool ConfigV1::load() noexcept {
     return true;
 }
 
-bool ConfigV1::save(const AppConfig& cfg) noexcept {
+bool Config::save(const AppConfig& cfg) noexcept {
     if (mFilePath.empty()) return false;
 
     FILE* f = nullptr;

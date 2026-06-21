@@ -1,22 +1,22 @@
-#include "BarV1.h"
+#include "Bar.h"
 
-BarV1::Theme::Theme() 
+Bar::Theme::Theme() 
     : barBackgroundColor(DARKGRAY), barForegroundColor(GRAY), textColor(WHITE) {}
 
-BarV1::Dimensions::Dimensions()
+Bar::Dimensions::Dimensions()
     : barWidth(300), barHeight(40), scalingRatio(1.0f), textSizeRatio(0.7f),
       minSize(90), maxSize(350) {}
 
-BarV1::Config::Config()
+Bar::Config::Config()
     : value(0), maxValue(100), autoScale(true), screenSizeRatio(0.25f) {}
 
-BarV1::Config::Config(float val, float maxVal)
+Bar::Config::Config(float val, float maxVal)
     : value(val), maxValue(maxVal), autoScale(true), screenSizeRatio(0.25f) {}
 
-BarV1::BarV1(const Theme& theme, const Dimensions& dimensions, const Config& config) 
+Bar::Bar(const Theme& theme, const Dimensions& dimensions, const Config& config) 
     : theme(theme), dims(dimensions), config(config) {}
 
-float BarV1::calculateBarSize() const {
+float Bar::calculateBarSize() const {
     if (config.autoScale) {
         float screenSize = std::min(GetScreenWidth(), GetScreenHeight());
         float baseSize = screenSize * config.screenSizeRatio * dims.scalingRatio;
@@ -27,7 +27,7 @@ float BarV1::calculateBarSize() const {
                      static_cast<float>(dims.maxSize));
 }
 
-void BarV1::draw(Vector2 centre, const std::string& label, const std::string& numb) const {
+void Bar::draw(Vector2 centre, const std::string& label, const std::string& numb) const {
     float valuePercentage = std::clamp(config.value / config.maxValue, 0.0f, 1.0f);
     float barSize = calculateBarSize();
 
@@ -94,12 +94,12 @@ void BarV1::draw(Vector2 centre, const std::string& label, const std::string& nu
                 Vector2{0, 0}, 0.0f, fontSize, 2.0f, theme.textColor);
 }
 
-void BarV1::setTheme(const Theme& newTheme) { theme = newTheme; }
-void BarV1::setDimensions(const Dimensions& newDimensions) { dims = newDimensions; }
-void BarV1::setConfig(const Config& newConfig) { config = newConfig; }
-void BarV1::setValue(float value) { config.value = value; }
+void Bar::setTheme(const Theme& newTheme) { theme = newTheme; }
+void Bar::setDimensions(const Dimensions& newDimensions) { dims = newDimensions; }
+void Bar::setConfig(const Config& newConfig) { config = newConfig; }
+void Bar::setValue(float value) { config.value = value; }
 
-void BarV1::drawInRect(Rectangle bounds, const std::string& label, const std::string& numb) const {
+void Bar::drawInRect(Rectangle bounds, const std::string& label, const std::string& numb) const {
     float valuePercentage = std::clamp(config.value / config.maxValue, 0.0f, 1.0f);
     float barWidth = bounds.width * 0.88f;
     float barHeight = bounds.height * 0.22f;
@@ -140,7 +140,7 @@ void BarV1::drawInRect(Rectangle bounds, const std::string& label, const std::st
                 Vector2{0, 0}, 0.0f, fontSize, 2.0f, theme.textColor);
 }
 
-float BarV1::getTotalHeight() const {
+float Bar::getTotalHeight() const {
     float barSize = calculateBarSize();
     float aspectRatio = static_cast<float>(dims.barHeight) / dims.barWidth;
     float baseHeight = barSize * aspectRatio;
@@ -150,9 +150,9 @@ float BarV1::getTotalHeight() const {
     return scaledHeight + fontSize + 10.0f;
 }
 
-const BarV1::Config& BarV1::getConfig() const { return config; }
+const Bar::Config& Bar::getConfig() const { return config; }
 
-float BarV1::getWidth() const {
+float Bar::getWidth() const {
     float barSize = calculateBarSize();
     float aspectRatio = static_cast<float>(dims.barHeight) / dims.barWidth;
     float maxAllowedHeight = GetScreenHeight() * 0.1f;
@@ -164,7 +164,7 @@ float BarV1::getWidth() const {
     return barSize;
 }
 
-float BarV1::getHeight() const {
+float Bar::getHeight() const {
     float barSize = calculateBarSize();
     float aspectRatio = static_cast<float>(dims.barHeight) / dims.barWidth;
     float height = barSize * aspectRatio;

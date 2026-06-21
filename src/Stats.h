@@ -1,5 +1,5 @@
-#ifndef STATSV1_H
-#define STATSV1_H
+#ifndef STATS_H
+#define STATS_H
 
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT _WIN32_WINNT_WIN10
@@ -16,7 +16,7 @@
 struct IWbemLocator;
 struct IWbemServices;
 
-class StatsV1 {
+class Stats {
 public:
     using DiskInfo = ::DiskInfo;
     using AdapterInfo = ::AdapterInfo;
@@ -81,13 +81,13 @@ private:
     void QueryGpuUtilWmi() noexcept;
 
 public:
-    StatsV1() noexcept;
-    ~StatsV1() noexcept;
+    Stats() noexcept;
+    ~Stats() noexcept;
 
-    StatsV1(const StatsV1&) = delete;
-    StatsV1& operator=(const StatsV1&) = delete;
-    StatsV1(StatsV1&&) noexcept = default;
-    StatsV1& operator=(StatsV1&&) noexcept = default;
+    Stats(const Stats&) = delete;
+    Stats& operator=(const Stats&) = delete;
+    Stats(Stats&&) noexcept = default;
+    Stats& operator=(Stats&&) noexcept = default;
 
     [[nodiscard]] float GETCPUFrequency() noexcept;
     [[nodiscard]] float GETCPUtilization() noexcept;

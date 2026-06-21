@@ -2,17 +2,17 @@
 #define RENDERING_H
 
 #include "raylib.h"
-#include "StatsV1.h"
-#include "BarV1.h"
-#include "GaugeV1.h"
-#include "ThemeV1.h"
-#include "TileV1.h"
+#include "Stats.h"
+#include "Bar.h"
+#include "Gauge.h"
+#include "Theme.h"
+#include "Tile.h"
 #include <cstdio>
 #include <string>
 #include <vector>
 #include <algorithm>
 
-// ─── Design System ──────────────────────────────────────────
+// --- Design System -----------------------------------------
 
 namespace DesignSystem {
 
@@ -29,16 +29,16 @@ inline float modelFont(float tileW) {
     return (std::max)(f, 8.0f);
 }
 
-inline BarV1::Theme makeBarTheme(const ThemeV1& t) {
-    BarV1::Theme b;
+inline Bar::Theme makeBarTheme(const Theme& t) {
+    Bar::Theme b;
     b.barBackgroundColor = t.barBackground;
     b.barForegroundColor = t.barForeground;
     b.textColor = t.textPrimary;
     return b;
 }
 
-inline GaugeV1::Theme makeGaugeTheme(const ThemeV1& t) {
-    GaugeV1::Theme g;
+inline Gauge::Theme makeGaugeTheme(const Theme& t) {
+    Gauge::Theme g;
     g.backgroundColor = t.windowBg;
     g.arcBackgroundColor = t.gaugeArcBg;
     g.arcActiveColor = t.gaugeArcActive;
@@ -48,7 +48,7 @@ inline GaugeV1::Theme makeGaugeTheme(const ThemeV1& t) {
 
 } // namespace DesignSystem
 
-// ─── Cross-thread Stats Data ─────────────────────────────────
+// --- Cross-thread Stats Data ---------------------------------------------
 
 inline std::string formatValue(float value) {
     std::string s = std::to_string(value);
@@ -77,10 +77,10 @@ struct StatsData {
     std::string gpuModel;
 };
 
-// ─── Tile Content Rendering ──────────────────────────────────
+// --- Tile Content Rendering ---------------------------------------------------
 
-inline void renderCPUTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
-                          StatsV1& stats, GaugeV1& gauge, BarV1& cpuBar) {
+inline void renderCPUTile(const Tile& tile, const Theme& theme, const StatsData& local,
+                          Stats& stats, Gauge& gauge, Bar& cpuBar) {
     Rectangle tb = tile.titleBar();
     float contentTop = tb.y + tb.height + 8.0f;
     float contentBot = tile.bounds.y + tile.bounds.height * 0.90f;
@@ -113,7 +113,7 @@ inline void renderCPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     float gaugeCenterY = mainTop + half * 0.50f;
     gauge.draw({midX, gaugeCenterY}, "Utilization");
 
-    BarV1::Dimensions barDims;
+    Bar::Dimensions barDims;
     barDims.barWidth = contentW;
     barDims.maxSize = contentW;
     barDims.minSize = (std::min)(60.0f, contentW * 0.45f);
@@ -124,8 +124,8 @@ inline void renderCPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     EndScissorMode();
 }
 
-inline void renderRAMTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
-                          GaugeV1& gauge, BarV1& ramBar) {
+inline void renderRAMTile(const Tile& tile, const Theme& theme, const StatsData& local,
+                          Gauge& gauge, Bar& ramBar) {
     Rectangle tb = tile.titleBar();
     float contentTop = tb.y + tb.height + 8.0f;
     float contentBot = tile.bounds.y + tile.bounds.height * 0.90f;
@@ -145,7 +145,7 @@ inline void renderRAMTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     float gaugeCenterY = contentTop + half * 0.50f;
     gauge.draw({midX, gaugeCenterY}, "Load");
 
-    BarV1::Dimensions barDims;
+    Bar::Dimensions barDims;
     barDims.barWidth = contentW;
     barDims.maxSize = contentW;
     barDims.minSize = (std::min)(60.0f, contentW * 0.45f);
@@ -164,8 +164,8 @@ inline void renderRAMTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     EndScissorMode();
 }
 
-inline void renderGPUTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
-                          StatsV1& stats, std::vector<BarV1>& bars, GaugeV1& gaugeGPU) {
+inline void renderGPUTile(const Tile& tile, const Theme& theme, const StatsData& local,
+                          Stats& stats, std::vector<Bar>& bars, Gauge& gaugeGPU) {
     Rectangle tb = tile.titleBar();
     float contentTop = tb.y + tb.height + 8.0f;
     float contentBot = tile.bounds.y + tile.bounds.height * 0.90f;
@@ -211,7 +211,7 @@ inline void renderGPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     float barsTop = mainTop + gaugeSectionH + 8.0f;
     float sectionH = barCount > 0 ? barsAvail / static_cast<float>(barCount) : barsAvail;
 
-    BarV1::Dimensions barDims;
+    Bar::Dimensions barDims;
     barDims.barWidth = contentW;
     barDims.maxSize = contentW;
     barDims.minSize = (std::min)(60.0f, contentW * 0.45f);
@@ -237,8 +237,8 @@ inline void renderGPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     EndScissorMode();
 }
 
-inline void renderNetworkTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
-                              std::vector<BarV1>& bars) {
+inline void renderNetworkTile(const Tile& tile, const Theme& theme, const StatsData& local,
+                              std::vector<Bar>& bars) {
     Rectangle tb = tile.titleBar();
     float contentTop = tb.y + tb.height + 8.0f;
     float contentBot = tile.bounds.y + tile.bounds.height * 0.90f;
@@ -249,7 +249,7 @@ inline void renderNetworkTile(const TileV1& tile, const ThemeV1& theme, const St
     BeginScissorMode(static_cast<int>(tile.bounds.x), static_cast<int>(tile.bounds.y),
                      static_cast<int>(tile.bounds.width), static_cast<int>(tile.bounds.height));
 
-    BarV1::Dimensions barDims;
+    Bar::Dimensions barDims;
     barDims.barWidth = contentW;
     barDims.maxSize = contentW;
     barDims.minSize = (std::min)(60.0f, contentW * 0.45f);
@@ -264,8 +264,8 @@ inline void renderNetworkTile(const TileV1& tile, const ThemeV1& theme, const St
     EndScissorMode();
 }
 
-inline void renderStorageTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
-                              StatsV1& stats, std::vector<BarV1>& bars, int fontSize) {
+inline void renderStorageTile(const Tile& tile, const Theme& theme, const StatsData& local,
+                              Stats& stats, std::vector<Bar>& bars, int fontSize) {
     const auto& diskList = stats.GetDisks();
     int diskCount = static_cast<int>(diskList.size());
     int enabledCount = 0;
@@ -287,7 +287,7 @@ inline void renderStorageTile(const TileV1& tile, const ThemeV1& theme, const St
                  static_cast<int>(contentTop + contentH * 0.50f - fontSize * 0.5f), fontSize, theme.textSecondary);
     } else {
         int barIdx = 6;
-        BarV1::Dimensions barDims;
+        Bar::Dimensions barDims;
         barDims.barWidth = contentW;
         barDims.maxSize = contentW;
         barDims.minSize = (std::min)(60.0f, contentW * 0.45f);
