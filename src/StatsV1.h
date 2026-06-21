@@ -11,6 +11,11 @@
 #include <vector>
 #include "DataTypes.h"
 
+// Forward-declare WMI interfaces (avoid pulling Wbemidl.h into headers
+// which conflicts with NOUSER/NOGDI defines used by WindowManager.h)
+struct IWbemLocator;
+struct IWbemServices;
+
 class StatsV1 {
 public:
     using DiskInfo = ::DiskInfo;
@@ -41,6 +46,14 @@ private:
     std::vector<GPUInstance> gpuInstances;
     std::string gpuModel;
 
+    // WMI for GPU utilization (aggregate per-LUID engine util)
+    IWbemLocator* pWbemLoc{nullptr};
+    IWbemServices* pWbemSvc{nullptr};
+    bool wbemReady{false};
+    std::vector<float> gpuUtilCache;
+    std::vector<std::wstring> gpuLuids;   // LUID per GPU index
+    LARGE_INTEGER gpuUtilQueryTime{};
+
     // Network measurements
     struct NetworkCounters {
         PDH_HQUERY query{nullptr};
@@ -64,6 +77,8 @@ private:
     static bool InitializeNetworkCounter(NetworkCounters& counter, const wchar_t* adapterName);
     static void CleanupNetworkCounter(NetworkCounters& counter) noexcept;
     float GetNetworkRate(NetworkCounters& counter, PDH_HCOUNTER hCounter) noexcept;
+    bool InitWbem() noexcept;
+    void QueryGpuUtilWmi() noexcept;
 
 public:
     StatsV1() noexcept;

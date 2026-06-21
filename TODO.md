@@ -11,6 +11,14 @@ Tests: `build\Release\perfmon_tests.exe` — 63 passed, 0 failed
 
 All major features complete: CPU/RAM/GPU/Disk/Network monitoring, tile dashboard with drag-to-arrange, 3 themes with config persistence, F2 diagnostics, F3 settings, F4 CSV logging, 63-test suite, production-ready module split with centralized design system.
 
+### [x] GPU VRAM counter cross-wired between GPUs
+**Files:** `StatsV1.cpp` (PDH VRAM setup)
+**Fix:** Replaced index-based matching with LUID-based matching for `\GPU Adapter Memory(*)\Dedicated Usage` PDH counters (same approach as `QueryGpuUtilWmi`). PDH enumeration order can differ from DXGI adapter order; LUID substring matching ensures each GPU gets the correct VRAM counter regardless of enumeration order or post-sort reordering.
+
+### [x] GPU model text missing from tile
+**Files:** `Rendering.h` (renderGPUTile)
+**Fix:** Added model name text rendering above the gauge in `renderGPUTile`, matching the `renderCPUTile` model text pattern (auto-shrinking font, `theme.textSecondary` color).
+
 ---
 
 ## Known Issues

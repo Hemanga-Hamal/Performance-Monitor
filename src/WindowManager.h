@@ -156,7 +156,7 @@ private:
             StatsData local;
             loadStatsData(local);
 
-            collectBarData(local, bars, gaugeCPU, gaugeRAM);
+            collectBarData(local, bars, gaugeCPU, gaugeRAM, gaugeGPU);
 
             if (loggingEnabled && logger.isLogging()) {
                 logger.writeRow(local.CPU_Freq, local.CPU_Util, local.RAM_Used, local.RAM_Util,
@@ -218,15 +218,17 @@ private:
     }
 
     void collectBarData(const StatsData& local, std::vector<BarV1>& bars,
-                        GaugeV1& gaugeCPU, GaugeV1& gaugeRAM) {
+                        GaugeV1& gaugeCPU, GaugeV1& gaugeRAM, GaugeV1& gaugeGPU) {
         gaugeCPU.setValue(local.CPU_Util);
         gaugeRAM.setValue(local.RAM_Util);
+        gaugeGPU.setValue(local.GPU_Util[0]);
         for (int i = 0; i < 16; i++) bars[i].setValue(0.0f);
         bars[0].setValue(local.CPU_Freq);
         bars[1].setValue(local.Wifi_Send);
         bars[2].setValue(local.Wifi_Recv);
         bars[3].setValue(local.Ether_Send);
         bars[4].setValue(local.Ether_Recv);
+        bars[15].setValue(local.RAM_Util);
     }
 
     static int tileIndex(const TileV1& tile) {
@@ -243,7 +245,7 @@ private:
         if (tile.config.title == "CPU")
             renderCPUTile(tile, activeTheme, local, stats, gaugeCPU, bars[0]);
         else if (tile.config.title == "RAM")
-            renderRAMTile(tile, activeTheme, local, gaugeRAM);
+            renderRAMTile(tile, activeTheme, local, gaugeRAM, bars[15]);
         else if (tile.config.title == "GPU")
             renderGPUTile(tile, activeTheme, local, stats, bars, gaugeGPU);
         else if (tile.config.title == "Network")

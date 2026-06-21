@@ -157,11 +157,11 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
             drawLine("Model:", buf);
             snprintf(buf, sizeof(buf), "%.1f %%", local.GPU_Util[0].load());
             drawLine("Utilization:", buf);
-            snprintf(buf, sizeof(buf), "VRAM: %.1f / %.1f GB",
+            snprintf(buf, sizeof(buf), "%.1f GB used of %.1f GB total",
                      local.GPU_VRAM[0].load(), local.GPU_VRAMTotal[0].load());
-            drawLine("", buf);
-            snprintf(buf, sizeof(buf), "Clock: %d MHz", local.GPU_Clock[0].load());
-            drawLine("", buf);
+            drawLine("VRAM:", buf);
+            snprintf(buf, sizeof(buf), "%d MHz", local.GPU_Clock[0].load());
+            drawLine("Clock:", buf);
         } else {
             drawLine("Status:", "Not detected");
         }

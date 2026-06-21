@@ -81,6 +81,8 @@ src/
 
 ### Phase 10: Bug Fixes — DONE
 - GetNetworkRate early-return, swprintf_s buffer size, bar spacing, PDH discovery robustness
+- **GPU VRAM LUID matching:** Replaced index-based PDH VRAM counter assignment with LUID substring matching (issue: PDH `\GPU Adapter Memory(*)\Dedicated Usage` enumeration order differs from DXGI adapter order)
+- **GPU model text:** Added missing model name rendering to `renderGPUTile` (matching `renderCPUTile` pattern)
 
 ### Phase 11: Production Consolidation — DONE
 - Main.cpp split into LayoutConfig, DesignSystem, TileRenderer, LandingPage, Overlays
@@ -132,9 +134,11 @@ All rate-based counters use a non-blocking two-phase pattern:
 5. Fallback: single adapter → ethernet
 
 ### GPU Multi-Instance Architecture
-1. `PdhExpandWildCardPathW` for `\GPU Engine(*)\Utilization Percentage`
-2. Parse instance names (skip `_Total`), create per-instance PDH query
-3. Store in `vector<GPUInstance>`, display as "GPU 1", "GPU 2"
+1. DXGI adapter enumeration for model + total VRAM + LUID
+2. PDH `\GPU Adapter Memory(*)\Dedicated Usage` for VRAM usage, matched to GPU by LUID substring (case-insensitive)
+3. WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` for per-engine utilization, aggregated by LUID
+4. WMI `Win32_VideoController` for clock speed
+5. Sort GPUs by `vramTotalGB` descending (dedicated GPUs first) — LUID matching survives sort
 
 ### Tile Grid Layout (4 cols × 4 rows)
 
@@ -190,7 +194,6 @@ CPU minimum size is 1×2. Grid has tiles filling all cells. User drags CPU towar
 - Network: only one Wi-Fi and one Ethernet adapter monitored
 - No temperature, fan speed, or power monitoring
 - No system tray minimize
-- PDH GPU Engine counter may not exist on all systems
 - Per-disk enabled state not persisted in config file
 - Disabled disks still counted in GETDiskCount()
-- GPU clock speed requires vendor-specific API (NVAPI/ADL) or WMI polling
+- GPU utilization requires WMI availability

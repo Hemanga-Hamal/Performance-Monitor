@@ -125,7 +125,7 @@ inline void renderCPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
 }
 
 inline void renderRAMTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
-                          GaugeV1& gauge) {
+                          GaugeV1& gauge, BarV1& ramBar) {
     Rectangle tb = tile.titleBar();
     float contentTop = tb.y + tb.height + 8.0f;
     float contentBot = tile.bounds.y + tile.bounds.height * 0.90f;
@@ -133,12 +133,35 @@ inline void renderRAMTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     float contentW = tile.bounds.width * 0.90f;
     float midX = tile.bounds.x + tile.bounds.width / 2;
 
-    float gaugeSize = (std::min)(contentW, contentH * 0.80f);
+    BeginScissorMode(static_cast<int>(tile.bounds.x), static_cast<int>(tile.bounds.y),
+                     static_cast<int>(tile.bounds.width), static_cast<int>(tile.bounds.height));
+
+    float half = contentH * 0.50f;
+
+    float gaugeSize = (std::min)(contentW, half * 0.90f);
     if (gaugeSize < 30.0f) gaugeSize = 30.0f;
     gauge.setAutoScale(false);
     gauge.setBaseSize(gaugeSize);
-    float gaugeCenterY = contentTop + contentH * 0.50f;
+    float gaugeCenterY = contentTop + half * 0.50f;
     gauge.draw({midX, gaugeCenterY}, "Load");
+
+    BarV1::Dimensions barDims;
+    barDims.barWidth = contentW;
+    barDims.maxSize = contentW;
+    barDims.minSize = (std::min)(60.0f, contentW * 0.45f);
+    ramBar.setDimensions(barDims);
+    float barCenterY = contentTop + half * 1.50f;
+    float used = local.RAM_Used.load();
+    float total = local.RAM_Total.load();
+    char label[64];
+    if (total > 0.0f) {
+        snprintf(label, sizeof(label), "%.1f / %.1f GB", used, total);
+    } else {
+        snprintf(label, sizeof(label), "%.1f GB", used);
+    }
+    ramBar.draw({midX, barCenterY}, label, formatValue(local.RAM_Util.load()));
+
+    EndScissorMode();
 }
 
 inline void renderGPUTile(const TileV1& tile, const ThemeV1& theme, const StatsData& local,
@@ -146,9 +169,25 @@ inline void renderGPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     Rectangle tb = tile.titleBar();
     float contentTop = tb.y + tb.height + 8.0f;
     float contentBot = tile.bounds.y + tile.bounds.height * 0.90f;
-    float contentH = contentBot - contentTop;
     float contentW = tile.bounds.width * 0.90f;
     float midX = tile.bounds.x + tile.bounds.width / 2;
+
+    BeginScissorMode(static_cast<int>(tile.bounds.x), static_cast<int>(tile.bounds.y),
+                     static_cast<int>(tile.bounds.width), static_cast<int>(tile.bounds.height));
+
+    const char* gpuModel = stats.GETGPUModel();
+    float mFont = DesignSystem::modelFont(tile.bounds.width);
+    bool hasModel = gpuModel[0] != '\0';
+    if (hasModel) {
+        int mw = MeasureText(gpuModel, static_cast<int>(mFont));
+        float maxW = tile.bounds.width - 16.0f;
+        float useFont = mFont;
+        while (useFont > 7.0f && mw > maxW) { useFont -= 0.5f; mw = MeasureText(gpuModel, static_cast<int>(useFont)); }
+        DrawText(gpuModel, static_cast<int>(midX - mw / 2),
+                 static_cast<int>(contentTop + 4.0f), static_cast<int>(useFont), theme.textSecondary);
+    }
+    float mainTop = contentTop + (hasModel ? mFont + 12.0f : 4.0f);
+    float contentH = contentBot - mainTop;
 
     float vramUsed = local.GPU_VRAM[0].load();
     float vramTot = local.GPU_VRAMTotal[0].load();
@@ -162,19 +201,15 @@ inline void renderGPUTile(const TileV1& tile, const ThemeV1& theme, const StatsD
     float barsAvail = contentH - gaugeSectionH;
     if (barsAvail < 4.0f) barsAvail = 4.0f;
 
-    BeginScissorMode(static_cast<int>(tile.bounds.x), static_cast<int>(tile.bounds.y),
-                     static_cast<int>(tile.bounds.width), static_cast<int>(tile.bounds.height));
-
     float gaugeSize = (std::min)(contentW, gaugeSectionH * 0.90f);
     if (gaugeSize < 40.0f) gaugeSize = 40.0f;
     gaugeGPU.setAutoScale(false);
     gaugeGPU.setBaseSize(gaugeSize);
-    gaugeGPU.setValue(local.GPU_Util[0].load());
-    float gaugeCenterY = contentTop + gaugeSectionH * 0.50f;
+    float gaugeCenterY = mainTop + gaugeSectionH * 0.50f;
     gaugeGPU.draw({midX, gaugeCenterY}, "Utilization");
 
-    float barsTop = contentTop + gaugeSectionH + 8.0f;
-    float sectionH = barCount > 0 ? barsAvail / static_cast<float>(barCount) : 0;
+    float barsTop = mainTop + gaugeSectionH + 8.0f;
+    float sectionH = barCount > 0 ? barsAvail / static_cast<float>(barCount) : barsAvail;
 
     BarV1::Dimensions barDims;
     barDims.barWidth = contentW;

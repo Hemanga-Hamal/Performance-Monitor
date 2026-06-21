@@ -39,7 +39,7 @@ Project root
     ├── StatsV1.cpp / .h    # PDH + DXGI + WMI stats collector
     │                       # CPU: frequency (PDH), utilization (GetSystemTimes), model (registry)
     │                       # RAM: total/used/util (GlobalMemoryStatusEx)
-    │                       # GPU: utilization (PDH per-engine), VRAM (PDH dedicated), total VRAM (DXGI),
+    │                       # GPU: utilization (WMI per-LUID engine), VRAM (PDH dedicated via LUID matching), total VRAM (DXGI),
     │                       #   model (DXGI adapter desc), clock speed (WMI Win32_VideoController)
     │                       # Disk: all DRIVE_FIXED via GetLogicalDrives, per-disk enabled/disabled
     │                       # Network: WiFi/Ethernet via PdhExpandWildCardPathW, keyword filter
@@ -262,10 +262,11 @@ PdhExpandWildCardPathW(nullptr, L"\\Network Interface(*)\\Bytes Total/sec", null
 
 ### GPU Multi-Instance Architecture
 1. Expand `\GPU Engine(*)\Utilization Percentage` wildcard path → per-engine PDH queries
-2. VRAM: `\GPU Adapter Memory(*)\Dedicated Usage` per-adapter PDH query
+2. VRAM: `\GPU Adapter Memory(*)\Dedicated Usage` per-adapter PDH query, matched to GPU by LUID substring (case-insensitive) — same approach as `QueryGpuUtilWmi` for utilization
 3. Total VRAM: DXGI adapter enumeration (`IDXGIFactory`, `IDXGIAdapter`, `DXGI_ADAPTER_DESC`)
 4. Model: DXGI `DXGI_ADAPTER_DESC.Description` (more reliable than registry/EnumDisplayDevices)
 5. Clock speed: WMI `Win32_VideoController` query for `CurrentClockSpeed`
+6. Sort: GPUs sorted by `vramTotalGB` descending (dedicated GPUs first) — LUID-based counter matching survives the sort
 
 ## Thread Safety
 - **StatsData** (Rendering.h): All members are `std::atomic<float/int>` — single-writer (updateStats thread), single-reader (renderLoop thread)
