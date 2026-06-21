@@ -9,33 +9,13 @@
 #include <atomic>
 #include <string>
 #include <vector>
+#include "DataTypes.h"
 
 class StatsV1 {
 public:
-    struct DiskInfo {
-        std::wstring name;
-        float totalGB{0.0f};
-        float usedGB{0.0f};
-        float utilization{0.0f};
-        bool enabled{true};
-    };
-
-    struct AdapterInfo {
-        std::wstring name;
-        bool isWiFi{false};
-        bool isEthernet{false};
-        bool enabled{true};
-    };
-
-    struct GPUInstance {
-        PDH_HQUERY query{nullptr};
-        PDH_HCOUNTER counter{nullptr};
-        std::wstring name;
-        std::string displayName;
-        LARGE_INTEGER collectTime{};
-        bool primed{false};
-        float cachedUtilization{0.0f};
-    };
+    using DiskInfo = ::DiskInfo;
+    using AdapterInfo = ::AdapterInfo;
+    using GPUInstance = ::GPUInstance;
 
 private:
     // CPU measurements
@@ -110,6 +90,9 @@ public:
 
     [[nodiscard]] int GETGPUCount() const noexcept { return static_cast<int>(gpuInstances.size()); }
     [[nodiscard]] float GETGPUUtilization(int index = 0) noexcept;
+    [[nodiscard]] float GETGPUVRAMUsed(int index = 0) noexcept;
+    [[nodiscard]] float GETGPUVRAMTotal(int index = 0) const noexcept;
+    [[nodiscard]] int GETGPUClockSpeed(int index = 0) const noexcept;
     [[nodiscard]] const wchar_t* GETGPUName(int index = 0) const noexcept;
     [[nodiscard]] const char* GETGPUModel() const noexcept { return gpuModel.c_str(); }
     [[nodiscard]] bool IsGPUAvailable() const noexcept { return !gpuInstances.empty(); }

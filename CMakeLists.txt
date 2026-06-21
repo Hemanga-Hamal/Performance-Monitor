@@ -30,6 +30,13 @@ set(HEADERS
     src/StatsV1.h
     src/ConfigV1.h
     src/LoggerV1.h
+    src/TileV1.h
+    src/ThemeV1.h
+    src/Rendering.h
+    src/LandingPage.h
+    src/Overlays.h
+    src/DataTypes.h
+    src/WindowManager.h
 )
 
 # --- Executable ---

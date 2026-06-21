@@ -68,6 +68,7 @@ void GaugeV1::setTotalAngle(float angle) noexcept { config.totalAngle = angle; }
 void GaugeV1::setStartAngle(float angle) noexcept { config.startAngle = angle; }
 void GaugeV1::setAutoScale(bool autoScale) noexcept { config.autoScale = autoScale; }
 void GaugeV1::setScreenSizeRatio(float ratio) noexcept { config.screenSizeRatio = ratio; }
+void GaugeV1::setTheme(const Theme& newTheme) { theme = newTheme; }
 void GaugeV1::setTextColor(Color color) noexcept { theme.textColor = color; }
 
 float GaugeV1::calculateGaugeSize() const {

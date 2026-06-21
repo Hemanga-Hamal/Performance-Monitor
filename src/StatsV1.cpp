@@ -1,7 +1,15 @@
 #include "StatsV1.h"
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <string>
 #include <pdh.h>
 #include <vector>
+#include <dxgi.h>
+#include <comdef.h>
+#include <Wbemidl.h>
+
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "wbemuuid.lib")
 
 namespace {
     constexpr float BYTES_TO_GB = 1024.0f * 1024.0f * 1024.0f;
@@ -141,7 +149,7 @@ StatsV1::StatsV1() noexcept {
         adapterInfos.push_back(info);
     }
 
-    // Initialize GPU queries (multi-GPU)
+    // Initialize GPU queries (multi-GPU): utilization + VRAM via PDH
     {
         DWORD bufSize = 0;
         PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
@@ -167,6 +175,18 @@ StatsV1::StatsV1() noexcept {
                         continue;
                     }
                     gpu.name = name;
+
+                    wchar_t vramPath[256];
+                    swprintf_s(vramPath, 256, L"\\GPU Adapter Memory(%s)\\Dedicated Usage", name.c_str());
+                    if (PdhOpenQuery(nullptr, 0, &gpu.vramQuery) == ERROR_SUCCESS) {
+                        if (PdhAddCounterW(gpu.vramQuery, vramPath, 0, &gpu.vramCounter) != ERROR_SUCCESS) {
+                            PdhCloseQuery(gpu.vramQuery);
+                            gpu.vramQuery = nullptr;
+                        } else {
+                            PdhCollectQueryData(gpu.vramQuery);
+                        }
+                    }
+
                     PdhCollectQueryData(gpu.query);
                     gpuInstances.push_back(std::move(gpu));
                 }
@@ -174,30 +194,111 @@ StatsV1::StatsV1() noexcept {
         }
     }
 
-    // Read GPU model name via EnumDisplayDevices
-    DISPLAY_DEVICEW dd = {sizeof(dd)};
-    DWORD devIdx = 0;
-    while (EnumDisplayDevicesW(nullptr, devIdx, &dd, 0)) {
-        devIdx++;
-        if (!(dd.StateFlags & DISPLAY_DEVICE_ACTIVE)) continue;
-
-        int len = WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, nullptr, 0, nullptr, nullptr);
-        std::string model;
-        model.resize(len > 0 ? len - 1 : 0);
-        if (len > 0) WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, &model[0], len, nullptr, nullptr);
-
-        if (gpuModel.empty()) gpuModel = model;
-
-        if (devIdx - 1 < static_cast<DWORD>(gpuInstances.size())) {
-            int glen = WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, nullptr, 0, nullptr, nullptr);
-            std::string gname;
-            gname.resize(glen > 0 ? glen - 1 : 0);
-            if (glen > 0) WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, &gname[0], glen, nullptr, nullptr);
-            gpuInstances[devIdx - 1].displayName = gname;
+    // Total VRAM via DXGI adapter enumeration
+    {
+        IDXGIFactory* dxgiFactory = nullptr;
+        if (SUCCEEDED(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&dxgiFactory))) && dxgiFactory) {
+            IDXGIAdapter* adapter = nullptr;
+            for (UINT i = 0; dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
+                DXGI_ADAPTER_DESC desc;
+                if (SUCCEEDED(adapter->GetDesc(&desc))) {
+                    ULONGLONG vramBytes = desc.DedicatedVideoMemory;
+                    if (i < static_cast<UINT>(gpuInstances.size())) {
+                        gpuInstances[i].vramTotalGB = static_cast<float>(vramBytes) / BYTES_TO_GB;
+                    }
+                }
+                adapter->Release();
+            }
+            dxgiFactory->Release();
         }
     }
-    if (gpuModel.empty() && !gpuInstances.empty()) {
+
+    // Read GPU model names via DXGI (more reliable than EnumDisplayDevices)
+    if (!gpuInstances.empty()) {
+        IDXGIFactory* dxgiFactory = nullptr;
+        if (SUCCEEDED(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&dxgiFactory))) && dxgiFactory) {
+            IDXGIAdapter* adapter = nullptr;
+            for (UINT i = 0; dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
+                DXGI_ADAPTER_DESC desc;
+                if (SUCCEEDED(adapter->GetDesc(&desc))) {
+                    int len = WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, nullptr, 0, nullptr, nullptr);
+                    std::string model;
+                    model.resize(len > 0 ? len - 1 : 0);
+                    if (len > 0) WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, &model[0], len, nullptr, nullptr);
+                    if (gpuModel.empty()) gpuModel = model;
+                    if (i < static_cast<UINT>(gpuInstances.size()) && gpuInstances[i].displayName.empty()) {
+                        gpuInstances[i].displayName = model;
+                    }
+                }
+                adapter->Release();
+            }
+            dxgiFactory->Release();
+        }
+    }
+
+    // Fallback: EnumDisplayDevices for model name if DXGI returned nothing
+    if (gpuModel.empty()) {
+        DISPLAY_DEVICEW dd = {sizeof(dd)};
+        DWORD devIdx = 0;
+        while (EnumDisplayDevicesW(nullptr, devIdx, &dd, 0)) {
+            devIdx++;
+            if (!(dd.StateFlags & DISPLAY_DEVICE_ACTIVE)) continue;
+            int len = WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, nullptr, 0, nullptr, nullptr);
+            if (len > 0) {
+                gpuModel.resize(len - 1);
+                WideCharToMultiByte(CP_UTF8, 0, dd.DeviceString, -1, &gpuModel[0], len, nullptr, nullptr);
+                break;
+            }
+        }
+    }
+    if (gpuModel.empty()) {
         gpuModel = "GPU";
+    }
+
+    // GPU clock speed via WMI
+    {
+        HRESULT hres = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        bool comInitialized = SUCCEEDED(hres);
+        if (hres == RPC_E_CHANGED_MODE) comInitialized = true;
+
+        IWbemLocator* pLoc = nullptr;
+        IWbemServices* pSvc = nullptr;
+        hres = CoCreateInstance(CLSID_WbemLocator, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_IWbemLocator, reinterpret_cast<void**>(&pLoc));
+        if (SUCCEEDED(hres) && pLoc) {
+            hres = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), nullptr, nullptr, nullptr,
+                                        0, nullptr, nullptr, &pSvc);
+            if (SUCCEEDED(hres) && pSvc) {
+                CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
+                                  RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE);
+                IEnumWbemClassObject* pEnum = nullptr;
+                hres = pSvc->ExecQuery(bstr_t(L"WQL"),
+                                       bstr_t(L"SELECT CurrentClockSpeed FROM Win32_VideoController WHERE Availability=3"),
+                                       WBEM_FLAG_FORWARD_ONLY, nullptr, &pEnum);
+                if (SUCCEEDED(hres) && pEnum) {
+                    IWbemClassObject* pObj = nullptr;
+                    ULONG uReturn = 0;
+                    int clockIdx = 0;
+                    while (pEnum->Next(WBEM_INFINITE, 1, &pObj, &uReturn) == S_OK) {
+                        VARIANT vtProp;
+                        VariantInit(&vtProp);
+                        if (SUCCEEDED(pObj->Get(L"CurrentClockSpeed", 0, &vtProp, 0, 0)) && vtProp.vt == VT_I4) {
+                            int clockMHz = vtProp.intVal;
+                            if (clockIdx < static_cast<int>(gpuInstances.size())) {
+                                gpuInstances[clockIdx].clockSpeedMHz = clockMHz;
+                            }
+                            clockIdx++;
+                        }
+                        VariantClear(&vtProp);
+                        pObj->Release();
+                    }
+                    pEnum->Release();
+                }
+                pSvc->Release();
+            }
+            pLoc->Release();
+        }
+        if (comInitialized && hres != RPC_E_CHANGED_MODE) CoUninitialize();
     }
 
     QueryPerformanceCounter(&lastCPUTime);
@@ -216,6 +317,10 @@ StatsV1::~StatsV1() noexcept {
         if (gpu.query) {
             if (gpu.counter) PdhRemoveCounter(gpu.counter);
             PdhCloseQuery(gpu.query);
+        }
+        if (gpu.vramQuery) {
+            if (gpu.vramCounter) PdhRemoveCounter(gpu.vramCounter);
+            PdhCloseQuery(gpu.vramQuery);
         }
     }
 }
@@ -418,6 +523,29 @@ float StatsV1::GETGPUUtilization(int index) noexcept {
     gpu.cachedUtilization = static_cast<float>(val.doubleValue);
     gpu.collectTime = now;
     return gpu.cachedUtilization;
+}
+
+float StatsV1::GETGPUVRAMUsed(int index) noexcept {
+    if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0.0f;
+    auto& gpu = gpuInstances[index];
+    if (!gpu.vramQuery || !gpu.vramCounter) return gpu.cachedVRAMUsed;
+
+    PDH_FMT_COUNTERVALUE val;
+    if (PdhCollectQueryData(gpu.vramQuery) == ERROR_SUCCESS &&
+        PdhGetFormattedCounterValue(gpu.vramCounter, PDH_FMT_DOUBLE, nullptr, &val) == ERROR_SUCCESS) {
+        gpu.cachedVRAMUsed = static_cast<float>(val.doubleValue) / BYTES_TO_GB;
+    }
+    return gpu.cachedVRAMUsed;
+}
+
+float StatsV1::GETGPUVRAMTotal(int index) const noexcept {
+    if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0.0f;
+    return gpuInstances[index].vramTotalGB;
+}
+
+int StatsV1::GETGPUClockSpeed(int index) const noexcept {
+    if (index < 0 || index >= static_cast<int>(gpuInstances.size())) return 0;
+    return gpuInstances[index].clockSpeedMHz;
 }
 
 float StatsV1::GETWiFiSend() noexcept {

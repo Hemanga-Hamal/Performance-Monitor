@@ -5,13 +5,25 @@
 #include "ThemeV1.h"
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <cmath>
 
 struct TileConfig {
     int col;
     int row;
     int spanCols;
     int spanRows;
+    int minSpanCols;
+    int minSpanRows;
     std::string title;
+};
+
+struct LayoutConfig {
+    static constexpr int gridCols = 4;
+    static constexpr int gridRows = 4;
+    static constexpr float statusBarH = 30.0f;
+    static constexpr float tilePadding = 10.0f;
+    static constexpr int maxTiles = 5;
 };
 
 class TileV1 {
@@ -27,6 +39,13 @@ public:
     float minHeight{100.0f};
     int lastScreenW{0};
     int lastScreenH{0};
+
+    struct DisplacedPreview {
+        int tileIndex;
+        Rectangle originalBounds;
+        Rectangle targetBounds;
+    };
+    std::vector<DisplacedPreview> displacedPreviews;
 
     TileV1() : config{}, bounds{}, snapPreview{} {}
     TileV1(const TileConfig& cfg) : config(cfg), bounds{}, snapPreview{} {}
@@ -100,6 +119,12 @@ public:
         Color ghostFill = {theme.accentColor.r, theme.accentColor.g, theme.accentColor.b, 50};
         DrawRectangleRounded(snapPreview, 0.06f, 12, ghostFill);
         DrawRectangleRoundedLinesEx(snapPreview, 0.06f, 12, 1.5f, theme.accentColor);
+
+        Color dispFill = {theme.textMuted.r, theme.textMuted.g, theme.textMuted.b, 40};
+        for (const auto& dp : displacedPreviews) {
+            DrawRectangleRounded(dp.targetBounds, 0.06f, 12, dispFill);
+            DrawRectangleRoundedLinesEx(dp.targetBounds, 0.06f, 12, 1.0f, theme.textMuted);
+        }
     }
 
     Rectangle titleBar() const {
@@ -108,6 +133,225 @@ public:
         if (barH > bounds.height * 0.45f) barH = bounds.height * 0.45f;
         return {bounds.x, bounds.y, bounds.width, barH};
     }
+
+    Vector2 contentCenter() const {
+        float tbH = std::max(bounds.height * 0.12f, 26.0f);
+        if (tbH > bounds.height * 0.45f) tbH = bounds.height * 0.45f;
+        return {bounds.x + bounds.width / 2, bounds.y + tbH + (bounds.height - tbH) / 2};
+    }
+
+    float contentHeight() const {
+        float tbH = std::max(bounds.height * 0.12f, 26.0f);
+        if (tbH > bounds.height * 0.45f) tbH = bounds.height * 0.45f;
+        return bounds.height - tbH;
+    }
+
+    float contentWidth() const {
+        return bounds.width * 0.88f;
+    }
+
+    // ─── Cell-based grid operations ───────────────────────────
+
+    static constexpr int kMaxGrid = 4;
+
+    static void buildOccupancy(const std::vector<TileV1>& tiles, int excludeIdx,
+                               bool occupied[kMaxGrid][kMaxGrid], int gridRows, int gridCols) {
+        for (int r = 0; r < gridRows; r++)
+            for (int c = 0; c < gridCols; c++)
+                occupied[r][c] = false;
+
+        for (int i = 0; i < static_cast<int>(tiles.size()); i++) {
+            if (i == excludeIdx) continue;
+            const TileConfig& cfg = tiles[i].config;
+            for (int r = cfg.row; r < cfg.row + cfg.spanRows && r < gridRows; r++)
+                for (int c = cfg.col; c < cfg.col + cfg.spanCols && c < gridCols; c++)
+                    occupied[r][c] = true;
+        }
+    }
+
+    static bool fitsInGrid(const TileConfig& cfg, int targetRow, int targetCol,
+                           bool occupied[kMaxGrid][kMaxGrid], int gridRows, int gridCols) {
+        if (targetRow < 0 || targetCol < 0) return false;
+        if (targetRow + cfg.spanRows > gridRows) return false;
+        if (targetCol + cfg.spanCols > gridCols) return false;
+        for (int r = targetRow; r < targetRow + cfg.spanRows; r++)
+            for (int c = targetCol; c < targetCol + cfg.spanCols; c++)
+                if (occupied[r][c]) return false;
+        return true;
+    }
+
+    static void markCells(const TileConfig& cfg, bool occupied[kMaxGrid][kMaxGrid], bool value) {
+        for (int r = cfg.row; r < cfg.row + cfg.spanRows && r < kMaxGrid; r++)
+            for (int c = cfg.col; c < cfg.col + cfg.spanCols && c < kMaxGrid; c++)
+                occupied[r][c] = value;
+    }
+
+    static int contiguousFreeRight(bool occupied[kMaxGrid][kMaxGrid], int row, int startCol, int gridCols) {
+        int count = 0;
+        for (int c = startCol; c < gridCols && !occupied[row][c]; c++) count++;
+        return count;
+    }
+
+    static int contiguousFreeDown(bool occupied[kMaxGrid][kMaxGrid], int col, int startRow, int gridRows) {
+        int count = 0;
+        for (int r = startRow; r < gridRows && !occupied[r][col]; r++) count++;
+        return count;
+    }
+
+    static int contiguousFreeLeft(bool occupied[kMaxGrid][kMaxGrid], int row, int startCol) {
+        int count = 0;
+        for (int c = startCol; c >= 0 && !occupied[row][c]; c--) count++;
+        return count;
+    }
+
+    static int contiguousFreeUp(bool occupied[kMaxGrid][kMaxGrid], int col, int startRow) {
+        int count = 0;
+        for (int r = startRow; r >= 0 && !occupied[r][col]; r--) count++;
+        return count;
+    }
+
+    static bool tryShiftTile(TileConfig& config, bool occupied[kMaxGrid][kMaxGrid],
+                             int gridRows, int gridCols) {
+        int bestDR = 0, bestDC = 0;
+        int bestScore = -1;
+
+        for (int tr = 0; tr < gridRows; tr++) {
+            for (int tc = 0; tc < gridCols; tc++) {
+                if (fitsInGrid(config, tr, tc, occupied, gridRows, gridCols)) {
+                    int score = (gridRows - abs(tr - config.row)) + (gridCols - abs(tc - config.col));
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestDR = tr;
+                        bestDC = tc;
+                    }
+                }
+            }
+        }
+
+        if (bestScore >= 0) {
+            config.row = bestDR;
+            config.col = bestDC;
+            markCells(config, occupied, true);
+            return true;
+        }
+        return false;
+    }
+
+    static void computePixelBounds(TileConfig& cfg, Rectangle& bounds,
+                                   int screenW, int screenH, int gridCols, int gridRows, float padding) {
+        float cellW = static_cast<float>(screenW) / gridCols;
+        float cellH = static_cast<float>(screenH) / gridRows;
+        bounds.x = cellW * cfg.col + padding;
+        bounds.y = cellH * cfg.row + padding;
+        bounds.width = cellW * cfg.spanCols - padding * 2;
+        bounds.height = cellH * cfg.spanRows - padding * 2;
+    }
+
+    struct PlacementResult {
+        bool accepted;
+        int finalRow;
+        int finalCol;
+        int finalSpanCols;
+        int finalSpanRows;
+        std::vector<std::pair<int, TileConfig>> displacedTiles; // index, new config
+    };
+
+    static PlacementResult tryPlaceTile(const std::vector<TileV1>& tiles, int draggedIdx,
+                                        int targetRow, int targetCol, int targetSpanCols, int targetSpanRows,
+                                        int gridRows, int gridCols) {
+        PlacementResult result = {false, 0, 0, 0, 0, {}};
+        if (draggedIdx < 0 || draggedIdx >= static_cast<int>(tiles.size())) return result;
+
+        TileConfig testCfg = tiles[draggedIdx].config;
+        testCfg.col = targetCol;
+        testCfg.row = targetRow;
+        testCfg.spanCols = targetSpanCols;
+        testCfg.spanRows = targetSpanRows;
+
+        bool occupied[kMaxGrid][kMaxGrid];
+        buildOccupancy(tiles, draggedIdx, occupied, gridRows, gridCols);
+
+        // Step 1: does the dragged tile fit directly?
+        if (fitsInGrid(testCfg, targetRow, targetCol, occupied, gridRows, gridCols)) {
+            result.accepted = true;
+            result.finalRow = targetRow;
+            result.finalCol = targetCol;
+            result.finalSpanCols = targetSpanCols;
+            result.finalSpanRows = targetSpanRows;
+            return result;
+        }
+
+        // Step 2: find conflicting tiles and try to displace them
+        std::vector<int> conflicts;
+        for (int i = 0; i < static_cast<int>(tiles.size()); i++) {
+            if (i == draggedIdx) continue;
+            const TileConfig& oc = tiles[i].config;
+            bool overlaps = false;
+            for (int r = targetRow; r < targetRow + targetSpanRows && r < gridRows; r++)
+                for (int c = targetCol; c < targetCol + targetSpanCols && c < gridCols; c++)
+                    if (occupied[r][c] && r >= oc.row && r < oc.row + oc.spanRows &&
+                        c >= oc.col && c < oc.col + oc.spanCols)
+                        { overlaps = true; break; }
+            if (overlaps) {
+                conflicts.push_back(i);
+                // Unmark conflicting tile so shift can use that space
+                markCells(tiles[i].config, occupied, false);
+            }
+        }
+
+        if (conflicts.empty()) return result;
+
+        bool allShifted = true;
+        std::vector<TileConfig> newConfigs(conflicts.size());
+        for (size_t ci = 0; ci < conflicts.size(); ci++) {
+            newConfigs[ci] = tiles[conflicts[ci]].config;
+        }
+
+        // Try to place dragged tile first
+        bool draggedPlaced = false;
+        for (int tryR = targetRow; tryR < gridRows && !draggedPlaced; tryR++) {
+            for (int tryC = 0; tryC < gridCols && !draggedPlaced; tryC++) {
+                if (fitsInGrid(testCfg, tryR, tryC, occupied, gridRows, gridCols)) {
+                    targetRow = tryR;
+                    targetCol = tryC;
+                    draggedPlaced = true;
+                }
+            }
+        }
+
+        if (draggedPlaced) {
+            markCells(testCfg, occupied, true);
+        } else {
+            allShifted = false;
+        }
+
+        // Shift each conflicting tile
+        if (allShifted) {
+            for (size_t ci = 0; ci < conflicts.size(); ci++) {
+                TileConfig& nc = newConfigs[ci];
+                if (nc.spanCols < tiles[conflicts[ci]].config.minSpanCols) nc.spanCols = tiles[conflicts[ci]].config.minSpanCols;
+                if (nc.spanRows < tiles[conflicts[ci]].config.minSpanRows) nc.spanRows = tiles[conflicts[ci]].config.minSpanRows;
+                if (!tryShiftTile(nc, occupied, gridRows, gridCols)) {
+                    allShifted = false;
+                    break;
+                }
+            }
+        }
+
+        if (allShifted) {
+            result.accepted = true;
+            result.finalRow = targetRow;
+            result.finalCol = targetCol;
+            result.finalSpanCols = testCfg.spanCols;
+            result.finalSpanRows = testCfg.spanRows;
+            for (size_t ci = 0; ci < conflicts.size(); ci++)
+                result.displacedTiles.push_back({conflicts[ci], newConfigs[ci]});
+        }
+
+        return result;
+    }
+
+    // ─── Drag and resize handling ─────────────────────────────
 
     void handleDrag(Vector2 mousePos, int screenW, int screenH, std::vector<TileV1>& others,
                     int gridCols, int gridRows) {
@@ -130,7 +374,7 @@ public:
             float newH = mousePos.y - bounds.y - dragOffset.y;
             if (newW > minWidth) bounds.width = newW;
             if (newH > minHeight) bounds.height = newH;
-            computeSnapPreview(screenW, screenH, gridCols, gridRows, 10.0f);
+            updateGhostPreview(screenW, screenH, gridCols, gridRows, 10.0f, others);
             return;
         }
         if (beingDragged && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -140,123 +384,132 @@ public:
             if (bounds.y < 0) bounds.y = 0;
             if (bounds.x + bounds.width > screenW) bounds.x = screenW - bounds.width;
             if (bounds.y + bounds.height > screenH) bounds.y = screenH - bounds.height;
-            computeSnapPreview(screenW, screenH, gridCols, gridRows, 10.0f);
+            updateGhostPreview(screenW, screenH, gridCols, gridRows, 10.0f, others);
             return;
         }
 
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
             if (beingDragged || beingResized) {
-                snapToGrid(screenW, screenH, gridCols, gridRows, 10.0f, others);
+                commitPlacement(screenW, screenH, gridCols, gridRows, 10.0f, others);
             }
             beingDragged = false;
             beingResized = false;
             hasSnapPreview = false;
+            displacedPreviews.clear();
         }
     }
 
-    void computeSnapPreview(int screenW, int screenH, int gridCols, int gridRows, float padding) {
+    void updateGhostPreview(int screenW, int screenH, int gridCols, int gridRows, float padding,
+                            const std::vector<TileV1>& others) {
         float cellW = static_cast<float>(screenW) / gridCols;
         float cellH = static_cast<float>(screenH) / gridRows;
-        float leftEdge = bounds.x;
-        float topEdge = bounds.y;
-        int bestCol = std::max(0, std::min(gridCols - 1, static_cast<int>((leftEdge) / cellW + 0.5f)));
-        int bestRow = std::max(0, std::min(gridRows - 1, static_cast<int>((topEdge) / cellH + 0.5f)));
-        int previewSpanCols = std::max(1, std::min(gridCols - bestCol, static_cast<int>(bounds.width / cellW + 0.5f)));
-        int previewSpanRows = std::max(1, std::min(gridRows - bestRow, static_cast<int>(bounds.height / cellH + 0.5f)));
-        snapPreview.x = cellW * bestCol + padding;
-        snapPreview.y = cellH * bestRow + padding;
-        snapPreview.width = cellW * previewSpanCols - padding * 2;
-        snapPreview.height = cellH * previewSpanRows - padding * 2;
+
+        int targetCol = std::max(0, std::min(gridCols - 1, static_cast<int>((bounds.x) / cellW + 0.5f)));
+        int targetRow = std::max(0, std::min(gridRows - 1, static_cast<int>((bounds.y) / cellH + 0.5f)));
+        int targetSpanCols = std::max(1, std::min(gridCols - targetCol, static_cast<int>(bounds.width / cellW + 0.5f)));
+        int targetSpanRows = std::max(1, std::min(gridRows - targetRow, static_cast<int>(bounds.height / cellH + 0.5f)));
+
+        snapPreview.x = cellW * targetCol + padding;
+        snapPreview.y = cellH * targetRow + padding;
+        snapPreview.width = cellW * targetSpanCols - padding * 2;
+        snapPreview.height = cellH * targetSpanRows - padding * 2;
         hasSnapPreview = true;
-    }
 
-    void snapToGrid(int screenW, int screenH, int gridCols, int gridRows, float padding,
-                    std::vector<TileV1>& others) {
-        float cellW = static_cast<float>(screenW) / gridCols;
-        float cellH = static_cast<float>(screenH) / gridRows;
-        float leftEdge = bounds.x;
-        float topEdge = bounds.y;
-        int bestCol = std::max(0, std::min(gridCols - 1, static_cast<int>((leftEdge) / cellW + 0.5f)));
-        int bestRow = std::max(0, std::min(gridRows - 1, static_cast<int>((topEdge) / cellH + 0.5f)));
+        int myIndex = -1;
+        for (int i = 0; i < static_cast<int>(others.size()); i++) {
+            if (&others[i] == this) { myIndex = i; break; }
+        }
 
-        int bestSpanCols = std::max(1, std::min(gridCols - bestCol, static_cast<int>(bounds.width / cellW + 0.5f)));
-        int bestSpanRows = std::max(1, std::min(gridRows - bestRow, static_cast<int>(bounds.height / cellH + 0.5f)));
+        PlacementResult pr = tryPlaceTile(others, myIndex, targetRow, targetCol,
+                                          targetSpanCols, targetSpanRows, gridRows, gridCols);
 
-        config.col = bestCol;
-        config.row = bestRow;
-        config.spanCols = bestSpanCols;
-        config.spanRows = bestSpanRows;
-
-        Rectangle target = {cellW * bestCol + padding, cellH * bestRow + padding,
-                            cellW * bestSpanCols - padding * 2, cellH * bestSpanRows - padding * 2};
-
-        resolveCollisions(others, target, gridCols, gridRows, cellW, cellH, padding);
-
-        bounds = target;
-    }
-
-    void resolveCollisions(std::vector<TileV1>& others, const Rectangle& target,
-                           int gridCols, int gridRows, float cellW, float cellH, float padding) {
-        Rectangle occupied = target;
-        for (auto& o : others) {
-            if (&o == this) continue;
-            if (!CheckCollisionRecs(o.bounds, occupied)) continue;
-
-            bool placed = false;
-            for (int tryRow = 0; tryRow < gridRows && !placed; tryRow++) {
-                for (int tryCol = 0; tryCol < gridCols && !placed; tryCol++) {
-                    Rectangle candidate = {cellW * tryCol + padding, cellH * tryRow + padding,
-                                           cellW * o.config.spanCols - padding * 2,
-                                           cellH * o.config.spanRows - padding * 2};
-                    if (candidate.x + candidate.width > cellW * gridCols) continue;
-                    if (candidate.y + candidate.height > cellH * gridRows) continue;
-
-                    bool overlaps = false;
-                    for (auto& other : others) {
-                        if (&other == &o) continue;
-                        if (&other == this) {
-                            if (CheckCollisionRecs(candidate, target)) { overlaps = true; break; }
-                        } else {
-                            if (CheckCollisionRecs(candidate, other.bounds)) { overlaps = true; break; }
-                        }
-                    }
-                    if (!overlaps) {
-                        o.bounds = candidate;
-                        o.config.col = tryCol;
-                        o.config.row = tryRow;
-                        placed = true;
-                    }
-                }
-            }
-            if (!placed) {
-                o.bounds.y = occupied.y + occupied.height + padding;
-                if (o.bounds.y + o.bounds.height > cellH * gridRows) {
-                    o.bounds.y = padding;
-                    o.bounds.x += o.bounds.width + padding;
-                    if (o.bounds.x + o.bounds.width > cellW * gridCols) {
-                        o.bounds.x = padding;
-                    }
-                }
-                o.config.col = std::max(0, std::min(gridCols - 1, static_cast<int>((o.bounds.x + o.bounds.width / 2 - padding) / cellW)));
-                o.config.row = std::max(0, std::min(gridRows - 1, static_cast<int>((o.bounds.y + o.bounds.height / 2 - padding) / cellH)));
+        displacedPreviews.clear();
+        if (pr.accepted) {
+            for (const auto& dp : pr.displacedTiles) {
+                DisplacedPreview prev;
+                prev.tileIndex = dp.first;
+                prev.originalBounds = others[dp.first].bounds;
+                Rectangle temp;
+                TileConfig tc = dp.second;
+                computePixelBounds(tc, temp, screenW, screenH, gridCols, gridRows, padding);
+                prev.targetBounds = temp;
+                displacedPreviews.push_back(prev);
             }
         }
     }
 
-    Vector2 contentCenter() const {
-        float titleBarH = std::max(bounds.height * 0.12f, 26.0f);
-        if (titleBarH > bounds.height * 0.45f) titleBarH = bounds.height * 0.45f;
-        return {bounds.x + bounds.width / 2, bounds.y + titleBarH + (bounds.height - titleBarH) / 2};
+    void commitPlacement(int screenW, int screenH, int gridCols, int gridRows,
+                         float padding, std::vector<TileV1>& others) {
+        float cellW = static_cast<float>(screenW) / gridCols;
+        float cellH = static_cast<float>(screenH) / gridRows;
+
+        int targetCol = std::max(0, std::min(gridCols - 1, static_cast<int>((bounds.x) / cellW + 0.5f)));
+        int targetRow = std::max(0, std::min(gridRows - 1, static_cast<int>((bounds.y) / cellH + 0.5f)));
+        int targetSpanCols = std::max(1, std::min(gridCols - targetCol, static_cast<int>(bounds.width / cellW + 0.5f)));
+        int targetSpanRows = std::max(1, std::min(gridRows - targetRow, static_cast<int>(bounds.height / cellH + 0.5f)));
+
+        int myIndex = -1;
+        for (int i = 0; i < static_cast<int>(others.size()); i++) {
+            if (&others[i] == this) { myIndex = i; break; }
+        }
+
+        PlacementResult pr = tryPlaceTile(others, myIndex, targetRow, targetCol,
+                                          targetSpanCols, targetSpanRows, gridRows, gridCols);
+
+        if (pr.accepted) {
+            config.col = pr.finalCol;
+            config.row = pr.finalRow;
+            config.spanCols = pr.finalSpanCols;
+            config.spanRows = pr.finalSpanRows;
+            bounds.x = cellW * pr.finalCol + padding;
+            bounds.y = cellH * pr.finalRow + padding;
+            bounds.width = cellW * pr.finalSpanCols - padding * 2;
+            bounds.height = cellH * pr.finalSpanRows - padding * 2;
+
+            for (const auto& dp : pr.displacedTiles) {
+                TileV1& other = others[dp.first];
+                other.config = dp.second;
+                computePixelBounds(other.config, other.bounds, screenW, screenH, gridCols, gridRows, padding);
+                other.lastScreenW = screenW;
+                other.lastScreenH = screenH;
+            }
+        } else {
+            // Rejected: snap back to original cell position
+            bounds.x = cellW * config.col + padding;
+            bounds.y = cellH * config.row + padding;
+            bounds.width = cellW * config.spanCols - padding * 2;
+            bounds.height = cellH * config.spanRows - padding * 2;
+        }
+
+        lastScreenW = screenW;
+        lastScreenH = screenH;
+        hasSnapPreview = false;
+        displacedPreviews.clear();
     }
 
-    float contentHeight() const {
-        float titleBarH = std::max(bounds.height * 0.12f, 26.0f);
-        if (titleBarH > bounds.height * 0.45f) titleBarH = bounds.height * 0.45f;
-        return bounds.height - titleBarH;
-    }
-
-    float contentWidth() const {
-        return bounds.width * 0.88f;
+    static std::vector<TileV1> createDefaultTiles() {
+        std::vector<TileV1> tiles;
+        {
+            TileConfig cfg = {0, 0, 2, 2, 1, 2, "CPU"};
+            tiles.push_back(TileV1(cfg));
+        }
+        {
+            TileConfig cfg = {0, 2, 2, 2, 1, 1, "RAM"};
+            tiles.push_back(TileV1(cfg));
+        }
+        {
+            TileConfig cfg = {2, 0, 2, 2, 1, 2, "GPU"};
+            tiles.push_back(TileV1(cfg));
+        }
+        {
+            TileConfig cfg = {2, 2, 2, 2, 1, 2, "Network"};
+            tiles.push_back(TileV1(cfg));
+        }
+        {
+            TileConfig cfg = {3, 0, 4, 1, 2, 1, "Storage"};
+            tiles.push_back(TileV1(cfg));
+        }
+        return tiles;
     }
 };
 

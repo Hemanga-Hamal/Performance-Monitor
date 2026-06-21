@@ -84,6 +84,7 @@ public:
     void setScale(float scale);
     void setBaseSize(float size);
     void setArcThickness(float thickness);
+    void setTheme(const Theme& newTheme);
     void setTotalAngle(float angle) noexcept;
     void setStartAngle(float angle) noexcept;
     void setAutoScale(bool autoScale) noexcept;
