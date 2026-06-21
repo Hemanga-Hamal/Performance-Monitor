@@ -149,16 +149,28 @@ StatsV1::StatsV1() noexcept {
         adapterInfos.push_back(info);
     }
 
-    // Initialize GPU queries (multi-GPU): utilization + VRAM via PDH
+    // ── helper: extract LUID substring from a PDH counter instance name ──
+    //  e.g. "pid_1234_luid_0x0000_0x0000_0x0000_0x00000017C4_phys_0_eng_3_engtype_3D"
+    //  returns "luid_0x0000_0x0000_0x0000_0x00000017C4"
+    auto extractLuid = [](const std::wstring& s) -> std::wstring {
+        size_t pos = s.find(L"luid_");
+        if (pos == std::wstring::npos) return L"";
+        size_t end = s.find(L"_phys_", pos);
+        if (end == std::wstring::npos) end = s.size();
+        return s.substr(pos, end - pos);
+    };
+
+    // ── Initialize GPU: VRAM via Adapter Memory, utilization via Engine ──
     {
-        DWORD bufSize = 0;
-        PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
-                                nullptr, &bufSize, 0);
-        if (bufSize > 0) {
-            std::vector<wchar_t> buf(bufSize + 1);
-            if (PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
-                                        buf.data(), &bufSize, 0) == ERROR_SUCCESS) {
-                for (const wchar_t* p = buf.data(); *p; p += wcslen(p) + 1) {
+        // ── 1. Expand GPU Adapter Memory for VRAM ──
+        DWORD vramBufSize = 0;
+        PdhExpandWildCardPathW(nullptr, L"\\GPU Adapter Memory(*)\\Dedicated Usage",
+                                nullptr, &vramBufSize, 0);
+        if (vramBufSize > 0) {
+            std::vector<wchar_t> vramBuf(vramBufSize + 1);
+            if (PdhExpandWildCardPathW(nullptr, L"\\GPU Adapter Memory(*)\\Dedicated Usage",
+                                        vramBuf.data(), &vramBufSize, 0) == ERROR_SUCCESS) {
+                for (const wchar_t* p = vramBuf.data(); *p; p += wcslen(p) + 1) {
                     std::wstring path = p;
                     size_t open = path.find(L'(');
                     size_t close = path.find(L')');
@@ -167,14 +179,8 @@ StatsV1::StatsV1() noexcept {
                     if (name.empty() || name == L"_Total") continue;
 
                     GPUInstance gpu;
-                    if (PdhOpenQuery(nullptr, 0, &gpu.query) != ERROR_SUCCESS) continue;
-                    wchar_t gpuPath[256];
-                    swprintf_s(gpuPath, 256, L"\\GPU Engine(%s)\\Utilization Percentage", name.c_str());
-                    if (PdhAddCounterW(gpu.query, gpuPath, 0, &gpu.counter) != ERROR_SUCCESS) {
-                        PdhCloseQuery(gpu.query);
-                        continue;
-                    }
-                    gpu.name = name;
+                    gpu.name = extractLuid(name);
+                    if (gpu.name.empty()) gpu.name = name;
 
                     wchar_t vramPath[256];
                     swprintf_s(vramPath, 256, L"\\GPU Adapter Memory(%s)\\Dedicated Usage", name.c_str());
@@ -186,11 +192,66 @@ StatsV1::StatsV1() noexcept {
                             PdhCollectQueryData(gpu.vramQuery);
                         }
                     }
-
-                    PdhCollectQueryData(gpu.query);
                     gpuInstances.push_back(std::move(gpu));
                 }
             }
+        }
+
+        // ── 2. Expand GPU Engine for utilization ──
+        DWORD engBufSize = 0;
+        PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
+                                nullptr, &engBufSize, 0);
+        if (engBufSize > 0) {
+            std::vector<wchar_t> engBuf(engBufSize + 1);
+            if (PdhExpandWildCardPathW(nullptr, L"\\GPU Engine(*)\\Utilization Percentage",
+                                        engBuf.data(), &engBufSize, 0) == ERROR_SUCCESS) {
+                for (const wchar_t* p = engBuf.data(); *p; p += wcslen(p) + 1) {
+                    std::wstring path = p;
+                    size_t open = path.find(L'(');
+                    size_t close = path.find(L')');
+                    if (open == std::wstring::npos || close == std::wstring::npos) continue;
+                    std::wstring name = path.substr(open + 1, close - open - 1);
+                    if (name.empty()) continue;
+
+                    if (name == L"_Total") {
+                        if (!gpuInstances.empty() && !gpuInstances[0].query) {
+                            wchar_t gpuPath[256];
+                            swprintf_s(gpuPath, 256, L"\\GPU Engine(_Total)\\Utilization Percentage");
+                            PdhOpenQuery(nullptr, 0, &gpuInstances[0].query);
+                            PdhAddCounterW(gpuInstances[0].query, gpuPath, 0, &gpuInstances[0].counter);
+                        }
+                        continue;
+                    }
+
+                    std::wstring luid = extractLuid(name);
+                    if (luid.empty()) continue;
+
+                    for (auto& gpu : gpuInstances) {
+                        if (!gpu.query && gpu.name == luid) {
+                            wchar_t gpuPath[256];
+                            swprintf_s(gpuPath, 256, L"\\GPU Engine(%s)\\Utilization Percentage", name.c_str());
+                            if (PdhOpenQuery(nullptr, 0, &gpu.query) == ERROR_SUCCESS) {
+                                PdhAddCounterW(gpu.query, gpuPath, 0, &gpu.counter);
+                                PdhCollectQueryData(gpu.query);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If no GPU found via PDH, fallback: try simple _Total
+        if (gpuInstances.empty()) {
+            GPUInstance gpu;
+            PdhOpenQuery(nullptr, 0, &gpu.query);
+            PdhAddCounterW(gpu.query, L"\\GPU Engine(_Total)\\Utilization Percentage", 0, &gpu.counter);
+            wchar_t vramPath[] = L"\\GPU Adapter Memory(_Total)\\Dedicated Usage";
+            if (PdhOpenQuery(nullptr, 0, &gpu.vramQuery) == ERROR_SUCCESS) {
+                PdhAddCounterW(gpu.vramQuery, vramPath, 0, &gpu.vramCounter);
+                PdhCollectQueryData(gpu.vramQuery);
+            }
+            gpuInstances.push_back(std::move(gpu));
         }
     }
 

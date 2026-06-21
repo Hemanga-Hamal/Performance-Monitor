@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <unordered_map>
 #include <cmath>
 
 struct TileConfig {
@@ -16,6 +17,13 @@ struct TileConfig {
     int minSpanCols;
     int minSpanRows;
     std::string title;
+
+    TileConfig shrunk(int newSpanCols, int newSpanRows) const {
+        TileConfig c = *this;
+        c.spanCols = newSpanCols;
+        c.spanRows = newSpanRows;
+        return c;
+    }
 };
 
 struct LayoutConfig {
@@ -152,7 +160,7 @@ public:
 
     // ─── Cell-based grid operations ───────────────────────────
 
-    static constexpr int kMaxGrid = 4;
+    static constexpr int kMaxGrid = 8;
 
     static void buildOccupancy(const std::vector<TileV1>& tiles, int excludeIdx,
                                bool occupied[kMaxGrid][kMaxGrid], int gridRows, int gridCols) {
@@ -211,18 +219,44 @@ public:
     }
 
     static bool tryShiftTile(TileConfig& config, bool occupied[kMaxGrid][kMaxGrid],
-                             int gridRows, int gridCols) {
-        int bestDR = 0, bestDC = 0;
+                              int gridRows, int gridCols) {
+        int bestDR = 0, bestDC = 0, bestSpanC = 0, bestSpanR = 0;
         int bestScore = -1;
 
+        for (int trySC = config.spanCols; trySC >= config.minSpanCols; trySC--) {
+            for (int trySR = config.spanRows; trySR >= config.minSpanRows; trySR--) {
+                if (trySC == config.spanCols && trySR == config.spanRows) {
+                    goto skip; // don't re-check current size (already tried by caller)
+                }
+                for (int tr = 0; tr < gridRows; tr++) {
+                    for (int tc = 0; tc < gridCols; tc++) {
+                        if (fitsInGrid(config.shrunk(trySC, trySR), tr, tc, occupied, gridRows, gridCols)) {
+                            int score = (gridRows - abs(tr - config.row)) + (gridCols - abs(tc - config.col)) + trySC + trySR;
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestDR = tr;
+                                bestDC = tc;
+                                bestSpanC = trySC;
+                                bestSpanR = trySR;
+                            }
+                        }
+                    }
+                }
+                skip:;
+            }
+        }
+
+        // Try current span as well
         for (int tr = 0; tr < gridRows; tr++) {
             for (int tc = 0; tc < gridCols; tc++) {
                 if (fitsInGrid(config, tr, tc, occupied, gridRows, gridCols)) {
-                    int score = (gridRows - abs(tr - config.row)) + (gridCols - abs(tc - config.col));
+                    int score = (gridRows - abs(tr - config.row)) + (gridCols - abs(tc - config.col)) + config.spanCols + config.spanRows;
                     if (score > bestScore) {
                         bestScore = score;
                         bestDR = tr;
                         bestDC = tc;
+                        bestSpanC = config.spanCols;
+                        bestSpanR = config.spanRows;
                     }
                 }
             }
@@ -231,6 +265,8 @@ public:
         if (bestScore >= 0) {
             config.row = bestDR;
             config.col = bestDC;
+            config.spanCols = bestSpanC;
+            config.spanRows = bestSpanR;
             markCells(config, occupied, true);
             return true;
         }
@@ -238,13 +274,23 @@ public:
     }
 
     static void computePixelBounds(TileConfig& cfg, Rectangle& bounds,
-                                   int screenW, int screenH, int gridCols, int gridRows, float padding) {
+                                    int screenW, int screenH, int gridCols, int gridRows, float padding) {
         float cellW = static_cast<float>(screenW) / gridCols;
         float cellH = static_cast<float>(screenH) / gridRows;
         bounds.x = cellW * cfg.col + padding;
         bounds.y = cellH * cfg.row + padding;
         bounds.width = cellW * cfg.spanCols - padding * 2;
         bounds.height = cellH * cfg.spanRows - padding * 2;
+    }
+
+    static bool anyPixelOverlaps(const std::vector<TileV1>& tiles) {
+        for (int i = 0; i < static_cast<int>(tiles.size()); i++) {
+            for (int j = i + 1; j < static_cast<int>(tiles.size()); j++) {
+                if (CheckCollisionRecs(tiles[i].bounds, tiles[j].bounds))
+                    return true;
+            }
+        }
+        return false;
     }
 
     struct PlacementResult {
@@ -457,6 +503,15 @@ public:
                                           targetSpanCols, targetSpanRows, gridRows, gridCols);
 
         if (pr.accepted) {
+            int originalCol = config.col;
+            int originalRow = config.row;
+            int originalSpanCols = config.spanCols;
+            int originalSpanRows = config.spanRows;
+            std::unordered_map<int, TileConfig> displacedOriginals;
+            for (const auto& dp : pr.displacedTiles) {
+                displacedOriginals[dp.first] = others[dp.first].config;
+            }
+
             config.col = pr.finalCol;
             config.row = pr.finalRow;
             config.spanCols = pr.finalSpanCols;
@@ -472,6 +527,26 @@ public:
                 computePixelBounds(other.config, other.bounds, screenW, screenH, gridCols, gridRows, padding);
                 other.lastScreenW = screenW;
                 other.lastScreenH = screenH;
+            }
+
+            if (anyPixelOverlaps(others)) {
+                // Hard invariant violated: revert to original
+                config.col = originalCol;
+                config.row = originalRow;
+                config.spanCols = originalSpanCols;
+                config.spanRows = originalSpanRows;
+                bounds.x = cellW * originalCol + padding;
+                bounds.y = cellH * originalRow + padding;
+                bounds.width = cellW * originalSpanCols - padding * 2;
+                bounds.height = cellH * originalSpanRows - padding * 2;
+
+                for (const auto& dp : pr.displacedTiles) {
+                    TileV1& other = others[dp.first];
+                    other.config = displacedOriginals[dp.first];
+                    computePixelBounds(other.config, other.bounds, screenW, screenH, gridCols, gridRows, padding);
+                    other.lastScreenW = screenW;
+                    other.lastScreenH = screenH;
+                }
             }
         } else {
             // Rejected: snap back to original cell position
@@ -494,7 +569,7 @@ public:
             tiles.push_back(TileV1(cfg));
         }
         {
-            TileConfig cfg = {0, 2, 2, 2, 1, 1, "RAM"};
+            TileConfig cfg = {0, 2, 2, 1, 1, 1, "RAM"};
             tiles.push_back(TileV1(cfg));
         }
         {
@@ -502,11 +577,11 @@ public:
             tiles.push_back(TileV1(cfg));
         }
         {
-            TileConfig cfg = {2, 2, 2, 2, 1, 2, "Network"};
+            TileConfig cfg = {2, 2, 2, 1, 1, 2, "Network"};
             tiles.push_back(TileV1(cfg));
         }
         {
-            TileConfig cfg = {3, 0, 4, 1, 2, 1, "Storage"};
+            TileConfig cfg = {0, 3, 4, 1, 2, 1, "Storage"};
             tiles.push_back(TileV1(cfg));
         }
         return tiles;

@@ -3,12 +3,14 @@
 
 #include "raylib.h"
 #include "StatsV1.h"
+#include "Rendering.h"
 #include "ThemeV1.h"
 #include <cstdio>
 #include <string>
 #include <algorithm>
 
-inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, int fontSize, StatsV1& stats) {
+inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, int fontSize,
+                                   const StatsV1& stats, const StatsData& local) {
     static float scrollOffset = 0.0f;
     int panelW = sw * 4 / 5, panelH = sh * 4 / 5;
     if (panelW < 420) panelW = 420;
@@ -45,27 +47,24 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
             if (f) {
                 fwprintf(f, L"=== Performance Monitor Diagnostics ===\n\n");
                 fwprintf(f, L"[CPU]\n");
-                fwprintf(f, L"  Model: %hs\n", stats.GETCPUModel());
-                fwprintf(f, L"  Frequency: %.0f MHz\n", stats.GETCPUFrequency());
-                fwprintf(f, L"  Utilization: %.1f %%\n", stats.GETCPUtilization());
+                fwprintf(f, L"  Model: %hs\n", local.cpuModel.c_str());
+                fwprintf(f, L"  Frequency: %.0f MHz\n", local.CPU_Freq.load());
+                fwprintf(f, L"  Utilization: %.1f %%\n", local.CPU_Util.load());
                 fwprintf(f, L"\n[RAM]\n");
-                fwprintf(f, L"  Total: %.1f GB\n", stats.GETRAMTotal());
-                fwprintf(f, L"  Used: %.1f GB\n", stats.GETRAMUsed());
-                fwprintf(f, L"  Utilization: %.1f %%\n", stats.GETRAMUtilization());
+                fwprintf(f, L"  Total: %.1f GB\n", local.RAM_Total.load());
+                fwprintf(f, L"  Used: %.1f GB\n", local.RAM_Used.load());
+                fwprintf(f, L"  Utilization: %.1f %%\n", local.RAM_Util.load());
                 fwprintf(f, L"\n[GPU]\n");
-                fwprintf(f, L"  Model: %hs\n", stats.GETGPUModel());
-                int gc = stats.GETGPUCount();
-                for (int i = 0; i < gc; i++) {
-                    char nbuf[128];
-                    WideCharToMultiByte(CP_UTF8, 0, stats.GETGPUName(i), -1, nbuf, sizeof(nbuf), nullptr, nullptr);
-                    fwprintf(f, L"  %hs: %.1f %%\n", nbuf, stats.GETGPUUtilization(i));
-                }
+                fwprintf(f, L"  Model: %hs\n", local.gpuModel.c_str());
+                fwprintf(f, L"  Utilization: %.1f %%\n", local.GPU_Util[0].load());
+                fwprintf(f, L"  VRAM: %.1f / %.1f GB\n", local.GPU_VRAM[0].load(), local.GPU_VRAMTotal[0].load());
+                fwprintf(f, L"  Clock: %d MHz\n", local.GPU_Clock[0].load());
                 fwprintf(f, L"\n[Disks]\n");
                 for (int i = 0; i < stats.GETDiskCount(); i++) {
                     char nbuf[64];
                     WideCharToMultiByte(CP_UTF8, 0, stats.GETDiskName(i), -1, nbuf, sizeof(nbuf), nullptr, nullptr);
-                    fwprintf(f, L"  %hs: %.1f GB / %.1f GB (%.1f %%)\n",
-                             nbuf, stats.GETDiskUsed(i), stats.GETDiskTotal(i), stats.GETDiskUtilization(i));
+                    fwprintf(f, L"  %hs: %.1f GB total, %.1f %%\n",
+                             nbuf, stats.GETDiskTotal(i), local.DiskUtil[i].load());
                 }
                 fwprintf(f, L"\n[Network]\n");
                 const auto& adps = stats.GetAdapters();
@@ -129,11 +128,11 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
     drawSection("CPU");
     {
         char buf[256];
-        snprintf(buf, sizeof(buf), "%s", stats.GETCPUModel());
+        snprintf(buf, sizeof(buf), "%s", local.cpuModel.c_str());
         drawLine("Model:", buf);
-        snprintf(buf, sizeof(buf), "%.0f MHz", stats.GETCPUFrequency());
+        snprintf(buf, sizeof(buf), "%.0f MHz", local.CPU_Freq.load());
         drawLine("Frequency:", buf);
-        snprintf(buf, sizeof(buf), "%.1f %%", stats.GETCPUtilization());
+        snprintf(buf, sizeof(buf), "%.1f %%", local.CPU_Util.load());
         drawLine("Utilization:", buf);
     }
     y += 6;
@@ -141,11 +140,11 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
     drawSection("RAM");
     {
         char buf[128];
-        snprintf(buf, sizeof(buf), "%.1f GB", stats.GETRAMTotal());
+        snprintf(buf, sizeof(buf), "%.1f GB", local.RAM_Total.load());
         drawLine("Total:", buf);
-        snprintf(buf, sizeof(buf), "%.1f GB", stats.GETRAMUsed());
+        snprintf(buf, sizeof(buf), "%.1f GB", local.RAM_Used.load());
         drawLine("Used:", buf);
-        snprintf(buf, sizeof(buf), "%.1f %%", stats.GETRAMUtilization());
+        snprintf(buf, sizeof(buf), "%.1f %%", local.RAM_Util.load());
         drawLine("Utilization:", buf);
     }
     y += 6;
@@ -154,15 +153,15 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
     {
         char buf[256];
         if (stats.IsGPUAvailable()) {
-            snprintf(buf, sizeof(buf), "%s", stats.GETGPUModel());
+            snprintf(buf, sizeof(buf), "%s", local.gpuModel.c_str());
             drawLine("Model:", buf);
-            int gpuCount = stats.GETGPUCount();
-            for (int i = 0; i < gpuCount; i++) {
-                char wbuf[128], lineBuf[256];
-                WideCharToMultiByte(CP_UTF8, 0, stats.GETGPUName(i), -1, wbuf, sizeof(wbuf), nullptr, nullptr);
-                snprintf(lineBuf, sizeof(lineBuf), "%.1f %%", stats.GETGPUUtilization(i));
-                drawLine(wbuf, lineBuf);
-            }
+            snprintf(buf, sizeof(buf), "%.1f %%", local.GPU_Util[0].load());
+            drawLine("Utilization:", buf);
+            snprintf(buf, sizeof(buf), "VRAM: %.1f / %.1f GB",
+                     local.GPU_VRAM[0].load(), local.GPU_VRAMTotal[0].load());
+            drawLine("", buf);
+            snprintf(buf, sizeof(buf), "Clock: %d MHz", local.GPU_Clock[0].load());
+            drawLine("", buf);
         } else {
             drawLine("Status:", "Not detected");
         }
@@ -174,8 +173,8 @@ inline void drawDiagnosticsOverlay(const ThemeV1& activeTheme, int sw, int sh, i
         if (y > visibleBot) break;
         char nameBuf[64], lineBuf[256];
         WideCharToMultiByte(CP_UTF8, 0, stats.GETDiskName(i), -1, nameBuf, sizeof(nameBuf), nullptr, nullptr);
-        snprintf(lineBuf, sizeof(lineBuf), "%.1f GB total, %.1f GB used, %.1f %%",
-                 stats.GETDiskTotal(i), stats.GETDiskUsed(i), stats.GETDiskUtilization(i));
+        snprintf(lineBuf, sizeof(lineBuf), "%.1f GB total, %.1f %%",
+                 stats.GETDiskTotal(i), local.DiskUtil[i].load());
         drawLine(nameBuf, lineBuf);
     }
     y += 6;

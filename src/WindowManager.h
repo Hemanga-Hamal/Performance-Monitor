@@ -49,14 +49,22 @@ private:
     LoggerV1 logger;
 
     void updateStats() {
+        bool wroteModels = false;
         while (dataRunning) {
             statsData.CPU_Freq.store(stats.GETCPUFrequency());
             statsData.CPU_Util.store(stats.GETCPUtilization());
+            statsData.RAM_Total.store(stats.GETRAMTotal());
+            statsData.RAM_Used.store(stats.GETRAMUsed());
             statsData.RAM_Util.store(stats.GETRAMUtilization());
             statsData.Wifi_Send.store(stats.GETWiFiSend());
             statsData.Wifi_Recv.store(stats.GETWiFiReceive());
             statsData.Ether_Send.store(stats.GETEthernetSend());
             statsData.Ether_Recv.store(stats.GETEthernetReceive());
+            if (!wroteModels) {
+                statsData.cpuModel = stats.GETCPUModel();
+                statsData.gpuModel = stats.GETGPUModel();
+                wroteModels = true;
+            }
             int gpuCount = stats.GETGPUCount();
             statsData.GPUCount.store(gpuCount);
             for (int i = 0; i < gpuCount && i < 4; i++) {
@@ -99,10 +107,12 @@ private:
         GaugeV1::Dimensions gaugeDims;
         GaugeV1 gaugeCPU(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, GaugeV1::Config::ConfigArc());
         GaugeV1 gaugeRAM(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, GaugeV1::Config::ConfigQuarter());
+        GaugeV1 gaugeGPU(DesignSystem::makeGaugeTheme(activeTheme), gaugeDims, GaugeV1::Config::ConfigArc());
 
         BarV1::Theme barTheme = DesignSystem::makeBarTheme(activeTheme);
         BarV1::Dimensions barDims;
         BarV1::Config barCfg;
+        barCfg.autoScale = false;
         std::vector<BarV1> bars;
         for (int i = 0; i < 16; i++) bars.emplace_back(barTheme, barDims, barCfg);
 
@@ -145,11 +155,11 @@ private:
 
             StatsData local;
             loadStatsData(local);
+
             collectBarData(local, bars, gaugeCPU, gaugeRAM);
 
             if (loggingEnabled && logger.isLogging()) {
-                float ramUsed = stats.GETRAMUsed();
-                logger.writeRow(local.CPU_Freq, local.CPU_Util, ramUsed, local.RAM_Util,
+                logger.writeRow(local.CPU_Freq, local.CPU_Util, local.RAM_Used, local.RAM_Util,
                                local.GPU_Util[0], local.Wifi_Send, local.Wifi_Recv,
                                local.Ether_Send, local.Ether_Recv);
             }
@@ -162,7 +172,7 @@ private:
                 if (!tileEnabled[idx]) continue;
                 float tfs = DesignSystem::tileTitleFont(t.bounds.width, t.bounds.height);
                 t.drawFrame(activeTheme, tfs);
-                renderTileContent(t, local, bars, gaugeCPU, gaugeRAM, fontSize);
+                renderTileContent(t, local, bars, gaugeCPU, gaugeRAM, gaugeGPU, fontSize);
             }
 
             for (auto& t : tiles) t.drawSnapPreview(activeTheme);
@@ -170,7 +180,7 @@ private:
             DrawFPS(sw - 80, 12);
             drawStatusBar(sw, sh, fontSize);
 
-            if (showDiagnostics) drawDiagnosticsOverlay(activeTheme, sw, sh, fontSize, stats);
+            if (showDiagnostics) drawDiagnosticsOverlay(activeTheme, sw, sh, fontSize, stats, local);
             if (showSettings) drawSettingsOverlay(activeTheme, sw, sh, fontSize, stats, tileEnabled);
 
             EndDrawing();
@@ -185,11 +195,15 @@ private:
     void loadStatsData(StatsData& local) {
         local.CPU_Freq = statsData.CPU_Freq.load();
         local.CPU_Util = statsData.CPU_Util.load();
+        local.RAM_Total = statsData.RAM_Total.load();
+        local.RAM_Used = statsData.RAM_Used.load();
         local.RAM_Util = statsData.RAM_Util.load();
         local.Wifi_Send = statsData.Wifi_Send.load();
         local.Wifi_Recv = statsData.Wifi_Recv.load();
         local.Ether_Send = statsData.Ether_Send.load();
         local.Ether_Recv = statsData.Ether_Recv.load();
+        local.cpuModel = statsData.cpuModel;
+        local.gpuModel = statsData.gpuModel;
         local.GPUCount = statsData.GPUCount.load();
         for (int i = 0; i < local.GPUCount && i < 4; i++) {
             local.GPU_Util[i] = statsData.GPU_Util[i].load();
@@ -213,7 +227,6 @@ private:
         bars[2].setValue(local.Wifi_Recv);
         bars[3].setValue(local.Ether_Send);
         bars[4].setValue(local.Ether_Recv);
-        bars[5].setValue(local.GPU_Util[0]);
     }
 
     static int tileIndex(const TileV1& tile) {
@@ -226,13 +239,13 @@ private:
     }
 
     void renderTileContent(TileV1& tile, const StatsData& local, std::vector<BarV1>& bars,
-                           GaugeV1& gaugeCPU, GaugeV1& gaugeRAM, int fontSize) {
+                           GaugeV1& gaugeCPU, GaugeV1& gaugeRAM, GaugeV1& gaugeGPU, int fontSize) {
         if (tile.config.title == "CPU")
             renderCPUTile(tile, activeTheme, local, stats, gaugeCPU, bars[0]);
         else if (tile.config.title == "RAM")
             renderRAMTile(tile, activeTheme, local, gaugeRAM);
         else if (tile.config.title == "GPU")
-            renderGPUTile(tile, activeTheme, local, stats, bars);
+            renderGPUTile(tile, activeTheme, local, stats, bars, gaugeGPU);
         else if (tile.config.title == "Network")
             renderNetworkTile(tile, activeTheme, local, bars);
         else if (tile.config.title == "Storage")
